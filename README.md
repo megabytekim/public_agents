@@ -20,9 +20,9 @@ cd public_agents
 
 ## Available Plugins
 
-### 1. paper-analyst
+### 1. research-papers
 
-**Academic Paper Analysis Expert**
+**Academic Paper Analysis Workflows**
 
 Systematically analyzes Computer Vision, ML, and NLP papers with template-based reviews and practical applicability assessment.
 
@@ -58,7 +58,7 @@ public_agents/
 ├── .claude-plugin/
 │   └── marketplace.json          # Plugin registry
 ├── plugins/
-│   └── paper-analyst/
+│   └── research-papers/
 │       ├── agents/
 │       │   └── cv-paper-analyst.md
 │       ├── commands/

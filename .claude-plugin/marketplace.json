@@ -11,9 +11,9 @@
   },
   "plugins": [
     {
-      "name": "paper-analyst",
-      "source": "./plugins/paper-analyst",
-      "description": "Academic paper analysis expert. Systematically analyzes Computer Vision, ML, and NLP papers with template-based reviews and practical applicability assessment",
+      "name": "research-papers",
+      "source": "./plugins/research-papers",
+      "description": "Academic paper analysis workflows. Systematically analyzes Computer Vision, ML, and NLP papers with template-based reviews and practical applicability assessment",
       "version": "1.0.0",
       "author": {
         "name": "megabytekim",
