@@ -1,0 +1,43 @@
+{
+  "name": "public-agents",
+  "owner": {
+    "name": "newyork",
+    "url": "https://github.com/newyork"
+  },
+  "metadata": {
+    "description": "Custom Claude Code plugin collection for paper analysis and research workflows",
+    "version": "1.0.0",
+    "license": "MIT"
+  },
+  "plugins": [
+    {
+      "name": "paper-analyst",
+      "source": "./plugins/paper-analyst",
+      "description": "Academic paper analysis expert. Systematically analyzes Computer Vision, ML, and NLP papers with template-based reviews and practical applicability assessment",
+      "version": "1.0.0",
+      "author": {
+        "name": "newyork",
+        "url": "https://github.com/newyork"
+      },
+      "homepage": "https://github.com/newyork/public_agents",
+      "repository": "https://github.com/newyork/public_agents",
+      "license": "MIT",
+      "keywords": [
+        "paper-analysis",
+        "computer-vision",
+        "machine-learning",
+        "research",
+        "academic-papers"
+      ],
+      "category": "research",
+      "strict": false,
+      "commands": [
+        "./commands/analyze.md"
+      ],
+      "agents": [
+        "./agents/cv-paper-analyst.md"
+      ],
+      "skills": []
+    }
+  ]
+}

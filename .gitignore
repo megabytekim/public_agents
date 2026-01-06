@@ -1,0 +1,35 @@
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.venv/
+env/
+.env
+
+# Node
+node_modules/
+
+# Staging files (keep structure, ignore contents)
+plugins/*/staging/input/*.pdf
+plugins/*/staging/analysis/*
+plugins/*/staging/memory/*
+
+# Results can be committed but large files should be ignored
+*.html
+
+# Cache
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
