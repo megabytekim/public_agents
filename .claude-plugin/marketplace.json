@@ -64,7 +64,7 @@
         "./commands/explain.md"
       ],
       "agents": [
-        "./agents/claude-code-guide.md"
+        "./agents/claude-code-guide-agent.md"
       ],
       "skills": []
     }

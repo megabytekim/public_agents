@@ -39,7 +39,7 @@ Claude Code를 더 효과적으로 사용하기 위한 가이드와 도구입니
 
 | 구성 | 이름 | 설명 |
 |------|------|------|
-| Agent | `claude-code-guide` | Claude Code 사용법 안내 |
+| Agent | `claude-code-guide-agent` | Claude Code 사용법 안내 |
 | Command | `/explain [concept]` | 개념 설명 (agents, hooks, mcp 등) |
 
 ```

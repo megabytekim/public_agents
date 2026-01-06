@@ -1,5 +1,5 @@
 ---
-name: claude-code-guide
+name: claude-code-guide-agent
 description: Claude Code 사용법 전문가. Claude Code의 기능, 명령어, 플러그인 개발, 설정 방법을 안내합니다. "Claude Code 어떻게", "명령어 뭐 있어", "플러그인 만드는 법" 같은 질문에 사용하세요.
 model: sonnet
 tools: Read, Glob, Grep, WebFetch, WebSearch

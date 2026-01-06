@@ -36,7 +36,7 @@ Claude Code 개념을 설명해주는 명령어입니다.
 
 ## Agents
 
-### 1. claude-code-guide
+### 1. claude-code-guide-agent
 **Claude Code 사용법 전문가**
 
 Claude Code의 기능, 명령어, 플러그인 개발, 설정 방법을 안내합니다.
@@ -67,7 +67,7 @@ Claude Code의 기능, 명령어, 플러그인 개발, 설정 방법을 안내�
 ```
 plugins/claude-workflows/
 ├── agents/
-│   └── claude-code-guide.md    # Claude Code 가이드 에이전트
+│   └── claude-code-guide-agent.md    # Claude Code 가이드 에이전트
 ├── commands/
 │   └── explain.md              # 개념 설명 명령어
 ├── skills/                      # (예정) 재사용 가능한 지식
@@ -80,7 +80,7 @@ plugins/claude-workflows/
 ## 사용 방법
 
 1. 플러그인 설치 후 자동으로 에이전트 사용 가능
-2. Claude Code 관련 질문 시 자동으로 `claude-code-guide` 에이전트 호출
+2. Claude Code 관련 질문 시 자동으로 `claude-code-guide-agent` 에이전트 호출
 3. 또는 명시적으로 "claude-code-guide 에이전트로 ..." 요청
 
 ## 기여하기
