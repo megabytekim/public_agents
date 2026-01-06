@@ -5,8 +5,8 @@
     "url": "https://github.com/megabytekim"
   },
   "metadata": {
-    "description": "Custom Claude Code plugin collection for paper analysis and research workflows",
-    "version": "1.0.0",
+    "description": "Custom Claude Code plugin collection for paper analysis, research workflows, and Web3/AI development",
+    "version": "1.1.0",
     "license": "MIT"
   },
   "plugins": [
@@ -35,7 +35,7 @@
         "./commands/analyze.md"
       ],
       "agents": [
-        "./agents/cv-paper-analyst.md"
+        "./agents/cv-paper-analyst-agent.md"
       ],
       "skills": []
     },
@@ -43,7 +43,7 @@
       "name": "claude-workflows",
       "source": "./plugins/claude-workflows",
       "description": "Claude Code workflows and productivity tools. Includes guides for Claude Code usage, plugin development, project onboarding, and workflow automation.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": {
         "name": "megabytekim",
         "url": "https://github.com/megabytekim"
@@ -61,10 +61,44 @@
       "category": "productivity",
       "strict": false,
       "commands": [
-        "./commands/explain.md"
+        "./commands/explain.md",
+        "./commands/explore.md"
       ],
       "agents": [
-        "./agents/claude-code-guide-agent.md"
+        "./agents/claude-code-guide-agent.md",
+        "./agents/plugin-refactor-agent.md"
+      ],
+      "skills": []
+    },
+    {
+      "name": "web3-ai",
+      "source": "./plugins/web3-ai",
+      "description": "Web3 and AI agent development specialists. Covers blockchain development, X402 protocol, Ethereum ecosystem, AI agent architectures, and humanities perspectives on emerging technologies.",
+      "version": "1.0.0",
+      "author": {
+        "name": "megabytekim",
+        "url": "https://github.com/megabytekim"
+      },
+      "homepage": "https://github.com/megabytekim/public_agents",
+      "repository": "https://github.com/megabytekim/public_agents",
+      "license": "MIT",
+      "keywords": [
+        "web3",
+        "blockchain",
+        "ethereum",
+        "ai-agents",
+        "x402-protocol",
+        "defi",
+        "smart-contracts",
+        "digital-humanities"
+      ],
+      "category": "development",
+      "strict": false,
+      "commands": [],
+      "agents": [
+        "./agents/ai-agent.md",
+        "./agents/humanities-web3-agent.md",
+        "./agents/x402-ethereum-agent.md"
       ],
       "skills": []
     }
