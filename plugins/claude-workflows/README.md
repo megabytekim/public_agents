@@ -2,6 +2,31 @@
 
 Claude Code 사용을 더 효과적으로 만들어주는 워크플로우 및 생산성 도구 모음입니다.
 
+## Commands
+
+### /explain [concept]
+Claude Code 개념을 설명해주는 명령어입니다.
+
+#### 지원하는 개념
+| 개념 | 설명 |
+|------|------|
+| `agents` | AI 서브에이전트 |
+| `commands` | 슬래시 명령어 |
+| `skills` | 재사용 가능한 전문 지식 |
+| `hooks` | 자동화 이벤트 훅 |
+| `mcp` | Model Context Protocol |
+| `plugins` | 확장 패키지 |
+| `memory` | CLAUDE.md 메모리 |
+| `model` | AI 모델 옵션 |
+| `tools` | 기본 제공 도구 |
+
+#### 사용 예시
+```
+/claude-workflows:explain agents
+/claude-workflows:explain hooks
+/claude-workflows:explain mcp
+```
+
 ## Agents
 
 ### 1. claude-code-guide

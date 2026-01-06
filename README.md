@@ -79,6 +79,9 @@ public_agents/
 
 Claude Code 사용을 더 효과적으로 만들어주는 워크플로우 및 생산성 도구 모음입니다.
 
+#### Commands
+- `/explain [concept]` - Claude Code 개념 설명 (agents, commands, skills, hooks, mcp 등)
+
 #### Agents
 - `claude-code-guide` - Claude Code 사용법, 명령어, 플러그인 개발 가이드
 

@@ -60,7 +60,9 @@
       ],
       "category": "productivity",
       "strict": false,
-      "commands": [],
+      "commands": [
+        "./commands/explain.md"
+      ],
       "agents": [
         "./agents/claude-code-guide.md"
       ],
