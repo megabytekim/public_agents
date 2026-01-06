@@ -26,6 +26,10 @@ plugins/*/staging/input/*.pdf
 plugins/*/staging/analysis/*
 plugins/*/staging/memory/*
 
+# Local folders (personal notes, not committed)
+plugins/*/local/*
+!plugins/*/local/.gitkeep
+
 # Results can be committed but large files should be ignored
 *.html
 

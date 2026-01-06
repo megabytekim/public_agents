@@ -4,7 +4,7 @@ Claude Code 사용을 더 효과적으로 만들어주는 워크플로우 및 �
 
 ## Commands
 
-### /explain [concept]
+### /explain [concept] [--save|--local]
 Claude Code 개념을 설명해주는 명령어입니다.
 
 #### 지원하는 개념
@@ -20,11 +20,18 @@ Claude Code 개념을 설명해주는 명령어입니다.
 | `model` | AI 모델 옵션 |
 | `tools` | 기본 제공 도구 |
 
+#### 저장 옵션
+| 플래그 | 저장 위치 | Git |
+|--------|----------|-----|
+| (없음) | 출력만 | - |
+| `--save` | `docs/concepts/` | ✅ 커밋 |
+| `--local` | `local/notes/` | 🚫 gitignored |
+
 #### 사용 예시
 ```
-/claude-workflows:explain agents
-/claude-workflows:explain hooks
-/claude-workflows:explain mcp
+/claude-workflows:explain agents           # 설명만 출력
+/claude-workflows:explain hooks --save     # docs/concepts/hooks-guide.md 저장
+/claude-workflows:explain mcp --local      # local/notes/mcp-guide.md 저장 (개인용)
 ```
 
 ## Agents
@@ -61,8 +68,13 @@ Claude Code의 기능, 명령어, 플러그인 개발, 설정 방법을 안내�
 plugins/claude-workflows/
 ├── agents/
 │   └── claude-code-guide.md    # Claude Code 가이드 에이전트
-├── commands/                    # (예정) 유틸리티 명령어
-└── skills/                      # (예정) 재사용 가능한 지식
+├── commands/
+│   └── explain.md              # 개념 설명 명령어
+├── skills/                      # (예정) 재사용 가능한 지식
+├── docs/                        # ✅ Git 커밋 (레퍼런스, 예시)
+│   └── concepts/               # /explain --save 저장 위치
+└── local/                       # 🚫 Gitignored (개인 노트)
+    └── notes/                  # /explain --local 저장 위치
 ```
 
 ## 사용 방법

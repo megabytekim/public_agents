@@ -1,13 +1,24 @@
 ---
-description: Claude Code 개념 설명. 사용법 - /explain [concept] (예- agents, commands, skills, hooks, mcp, plugins, memory)
-argument-hint: [concept]
+description: Claude Code 개념 설명. 사용법 - /explain [concept] [--save|--local] (예- agents, commands, skills, hooks, mcp)
+argument-hint: [concept] [--save|--local]
+allowed-tools: Read, Write
 ---
 
 # Claude Code 개념 설명
 
-사용자가 요청한 개념: **$ARGUMENTS**
+사용자 입력: **$ARGUMENTS**
+
+## 파싱 규칙
+- `$1` = 개념 (agents, commands, skills, hooks, mcp, plugins, memory, model, tools)
+- `--save` 플래그 → `plugins/claude-workflows/docs/concepts/` 에 저장 (Git 커밋용)
+- `--local` 플래그 → `plugins/claude-workflows/local/notes/` 에 저장 (개인용, gitignored)
+- 플래그 없음 → 설명만 출력
+
+## 저장 시 파일명
+- `{concept}-guide.md` 형식 (예: `agents-guide.md`, `hooks-guide.md`)
 
 아래 개념들 중 해당하는 내용을 **한국어로** 간결하게 설명해주세요.
+저장 플래그가 있으면 설명 내용을 해당 경로에 마크다운 파일로 저장하세요.
 
 ---
 
