@@ -1,100 +1,70 @@
 # Public Agents
 
-Custom Claude Code plugin collection for research and analysis workflows.
+Custom Claude Code plugin collection for research and productivity workflows.
 
 ## Installation
 
-Add this repository as a Claude Code plugin source:
-
 ```bash
-# From Claude Code, install the plugin
-/install-plugin https://github.com/newyork/public_agents
+/install-plugin https://github.com/megabytekim/public_agents
 ```
 
-Or clone and use locally:
+## Plugins
 
-```bash
-git clone https://github.com/newyork/public_agents.git
-cd public_agents
+| Plugin | Description | Category |
+|--------|-------------|----------|
+| **research-papers** | 학술 논문 분석 워크플로우 | Research |
+| **claude-workflows** | Claude Code 생산성 도구 | Productivity |
+
+---
+
+### research-papers
+
+학술 논문을 체계적으로 분석하고 실무 적용성을 평가합니다.
+
+| 구성 | 이름 | 설명 |
+|------|------|------|
+| Agent | `cv-paper-analyst` | Computer Vision 논문 분석 |
+| Command | `/analyze` | PDF, arXiv, 제목으로 논문 분석 |
+
 ```
-
-## Available Plugins
-
-### 1. research-papers
-
-**Academic Paper Analysis Workflows**
-
-Systematically analyzes Computer Vision, ML, and NLP papers with template-based reviews and practical applicability assessment.
-
-#### Features
-- 📄 PDF/arXiv paper automatic analysis
-- 🔍 Related research and code exploration (GitHub, implementations)
-- 📊 Benchmark performance comparison
-- 💡 Key insight extraction
-- 🎯 Practical applicability assessment
-
-#### Agents
-- `cv-paper-analyst` - Computer Vision paper analysis specialist
-
-#### Commands
-- `/analyze` - Analyze a paper from PDF, arXiv link, or title
-
-#### Usage
-```
-# Analyze from arXiv
 "Analyze https://arxiv.org/abs/2103.03230"
-
-# Analyze from PDF
-"Analyze the paper in staging/input/paper.pdf"
-
-# Search and analyze
-"Analyze the Vision Transformer paper"
+"Vision Transformer 논문 분석해줘"
 ```
 
-## Directory Structure
+---
 
-```
-public_agents/
-├── .claude-plugin/
-│   └── marketplace.json          # Plugin registry
-├── plugins/
-│   ├── research-papers/
-│   │   ├── agents/
-│   │   │   └── cv-paper-analyst.md
-│   │   ├── commands/
-│   │   │   └── analyze.md
-│   │   ├── staging/
-│   │   └── results/
-│   └── claude-workflows/
-│       ├── agents/
-│       │   └── claude-code-guide.md
-│       ├── commands/
-│       └── skills/
-└── README.md
-```
+### claude-workflows
 
-### 2. claude-workflows
+Claude Code를 더 효과적으로 사용하기 위한 가이드와 도구입니다.
 
-**Claude Code Workflows & Productivity Tools**
+| 구성 | 이름 | 설명 |
+|------|------|------|
+| Agent | `claude-code-guide` | Claude Code 사용법 안내 |
+| Command | `/explain [concept]` | 개념 설명 (agents, hooks, mcp 등) |
 
-Claude Code 사용을 더 효과적으로 만들어주는 워크플로우 및 생산성 도구 모음입니다.
-
-#### Commands
-- `/explain [concept]` - Claude Code 개념 설명 (agents, commands, skills, hooks, mcp 등)
-
-#### Agents
-- `claude-code-guide` - Claude Code 사용법, 명령어, 플러그인 개발 가이드
-
-#### Usage
 ```
 "Claude Code 명령어 뭐 있어?"
-"플러그인 어떻게 만들어?"
-"MCP 서버 설정 방법 알려줘"
+"/claude-workflows:explain hooks --save"
+```
+
+---
+
+## Plugin Structure
+
+각 플러그인은 다음 구조를 따릅니다:
+
+```
+plugins/{plugin-name}/
+├── agents/      # AI 에이전트
+├── commands/    # 슬래시 명령어
+├── skills/      # 재사용 가능한 지식
+├── docs/        # 레퍼런스 문서 (Git 커밋)
+└── local/       # 개인 노트 (Gitignored)
 ```
 
 ## Contributing
 
-Feel free to add new plugins following the same structure pattern.
+새로운 플러그인이나 에이전트 제안 환영합니다.
 
 ## License
 
