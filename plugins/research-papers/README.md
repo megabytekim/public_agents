@@ -1,4 +1,4 @@
-# Paper Analyst Plugin
+# Research Papers Plugin
 
 학술 논문을 체계적으로 분석하고 인사이트를 제공하는 전문 에이전트 플러그인입니다.
 
@@ -33,7 +33,7 @@
 1. **논문 준비**
    ```bash
    # PDF 파일을 input 디렉토리에 넣기
-   cp your-paper.pdf plugins/paper-analyst/staging/input/
+   cp your-paper.pdf plugins/research-papers/staging/input/
    ```
 
 2. **에이전트 시작**
@@ -77,7 +77,7 @@
 ## 디렉토리 구조
 
 ```
-plugins/paper-analyst/
+plugins/research-papers/
 ├── agents/
 │   └── cv-paper-analyst.md    # CV 논문 분석 에이전트
 ├── staging/

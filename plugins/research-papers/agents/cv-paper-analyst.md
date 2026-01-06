@@ -330,7 +330,7 @@ Both files are ready in the results/ folder:
 ## File Structure
 
 ```
-plugins/paper-analyst/
+plugins/research-papers/
 ├── agents/
 │   ├── cv-paper-analyst.md         # Computer Vision paper analysis
 │   └── ml-paper-analyst.md         # (To be added) General ML paper analysis
