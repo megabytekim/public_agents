@@ -58,17 +58,35 @@ public_agents/
 ├── .claude-plugin/
 │   └── marketplace.json          # Plugin registry
 ├── plugins/
-│   └── research-papers/
+│   ├── research-papers/
+│   │   ├── agents/
+│   │   │   └── cv-paper-analyst.md
+│   │   ├── commands/
+│   │   │   └── analyze.md
+│   │   ├── staging/
+│   │   └── results/
+│   └── claude-workflows/
 │       ├── agents/
-│       │   └── cv-paper-analyst.md
+│       │   └── claude-code-guide.md
 │       ├── commands/
-│       │   └── analyze.md
-│       ├── staging/
-│       │   ├── input/            # Place PDF files here
-│       │   ├── analysis/         # Intermediate results
-│       │   └── memory/           # Analysis history
-│       └── results/              # Final analysis reports
+│       └── skills/
 └── README.md
+```
+
+### 2. claude-workflows
+
+**Claude Code Workflows & Productivity Tools**
+
+Claude Code 사용을 더 효과적으로 만들어주는 워크플로우 및 생산성 도구 모음입니다.
+
+#### Agents
+- `claude-code-guide` - Claude Code 사용법, 명령어, 플러그인 개발 가이드
+
+#### Usage
+```
+"Claude Code 명령어 뭐 있어?"
+"플러그인 어떻게 만들어?"
+"MCP 서버 설정 방법 알려줘"
 ```
 
 ## Contributing

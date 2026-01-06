@@ -38,6 +38,33 @@
         "./agents/cv-paper-analyst.md"
       ],
       "skills": []
+    },
+    {
+      "name": "claude-workflows",
+      "source": "./plugins/claude-workflows",
+      "description": "Claude Code workflows and productivity tools. Includes guides for Claude Code usage, plugin development, project onboarding, and workflow automation.",
+      "version": "1.0.0",
+      "author": {
+        "name": "megabytekim",
+        "url": "https://github.com/megabytekim"
+      },
+      "homepage": "https://github.com/megabytekim/public_agents",
+      "repository": "https://github.com/megabytekim/public_agents",
+      "license": "MIT",
+      "keywords": [
+        "claude-code",
+        "productivity",
+        "workflow",
+        "plugin-development",
+        "developer-tools"
+      ],
+      "category": "productivity",
+      "strict": false,
+      "commands": [],
+      "agents": [
+        "./agents/claude-code-guide.md"
+      ],
+      "skills": []
     }
   ]
 }
