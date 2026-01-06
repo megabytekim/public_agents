@@ -14,6 +14,7 @@ Custom Claude Code plugin collection for research and productivity workflows.
 |--------|-------------|----------|
 | **research-papers** | 학술 논문 분석 워크플로우 | Research |
 | **claude-workflows** | Claude Code 생산성 도구 | Productivity |
+| **web3-ai** | Web3/Ethereum 및 AI 에이전트 개발 | Blockchain, AI |
 
 ---
 
@@ -45,6 +46,22 @@ Claude Code를 더 효과적으로 사용하기 위한 가이드와 도구입니
 ```
 "Claude Code 명령어 뭐 있어?"
 "/claude-workflows:explain hooks --save"
+```
+
+---
+
+### web3-ai
+
+Web3/Ethereum 블록체인 개발과 AI 에이전트 시스템 구축을 위한 전문 에이전트입니다.
+
+| 구성 | 이름 | 설명 |
+|------|------|------|
+| Agent | `x402-ethereum-agent` | Web3/Ethereum 스마트 컨트랙트 개발 |
+| Agent | `ai-agent` | LLM 기반 AI 에이전트 개발 |
+
+```
+"ERC-4337 account abstraction 구현해줘"
+"LangChain으로 RAG 에이전트 만들어줘"
 ```
 
 ---

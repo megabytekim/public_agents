@@ -1,0 +1,83 @@
+# Web3 AI Plugin
+
+Web3/Ethereum 개발과 AI 에이전트 시스템 구축을 위한 전문 에이전트 모음입니다.
+
+## Agents
+
+### 1. x402-ethereum-agent
+**Web3 및 Ethereum 블록체인 개발 전문가**
+
+X402 프로토콜과 Ethereum 생태계 개발에 특화된 에이전트입니다.
+
+#### 주요 기능
+- X402 프로토콜 구현 및 통합
+- Solidity 스마트 컨트랙트 개발 (ERC-20, ERC-721, ERC-1155, ERC-4337)
+- Layer 2 솔루션: Polygon, Arbitrum, Optimism, Base, zkSync
+- DeFi 프로토콜 통합: Uniswap, Aave, Compound
+- Web3 프론트엔드: Wagmi, Viem, RainbowKit
+- NFT 개발 및 마켓플레이스 구축
+- Account Abstraction (ERC-4337)
+
+#### 사용 예시
+```
+"X402 토큰 표준으로 거버넌스 시스템 구현해줘"
+"ERC-4337 account abstraction으로 가스리스 트랜잭션 만들어줘"
+"Uniswap V3 유동성 풀 통합해줘"
+"NFT 마켓플레이스 스마트 컨트랙트 작성해줘"
+```
+
+---
+
+### 2. ai-agent
+**AI 에이전트 개발 전문가**
+
+LLM 기반 에이전트, 멀티 에이전트 시스템, RAG 구현에 특화된 에이전트입니다.
+
+#### 주요 기능
+- LLM 통합: OpenAI, Anthropic, Google, 오픈소스 모델
+- 에이전트 프레임워크: LangChain, LangGraph, CrewAI, AutoGPT
+- RAG 시스템: Pinecone, Weaviate, ChromaDB
+- A2A (Agent-to-Agent) 프로토콜 구현
+- 멀티 에이전트 협업 시스템
+- 에이전트 평가 및 모니터링
+
+#### Context7 MCP 통합
+라이브러리별 최신 문서를 자동으로 가져와 정확한 코드를 생성합니다.
+
+#### 사용 예시
+```
+"LangChain으로 RAG 기반 고객 지원 에이전트 만들어줘"
+"CrewAI로 멀티 에이전트 리서치 시스템 구축해줘"
+"A2A 프로토콜로 에이전트 간 통신 구현해줘"
+"LangGraph로 워크플로우 기반 에이전트 만들어줘"
+```
+
+---
+
+## 디렉토리 구조
+
+```
+plugins/web3-ai/
+├── agents/
+│   ├── x402-ethereum-agent.md    # Web3/Ethereum 개발 에이전트
+│   └── ai-agent.md               # AI 에이전트 개발 에이전트
+├── commands/                      # (예정) 슬래시 명령어
+├── skills/                        # (예정) 재사용 가능한 지식
+├── docs/                          # 레퍼런스 문서
+└── local/                         # 개인 노트 (Gitignored)
+```
+
+## 사용 방법
+
+1. 플러그인 설치 후 자동으로 에이전트 사용 가능
+2. Web3 개발 질문 시 `x402-ethereum-agent` 자동 호출
+3. AI 에이전트 개발 질문 시 `ai-agent` 자동 호출
+4. 또는 명시적으로 에이전트 지정 가능
+
+## 키워드
+
+`web3` `ethereum` `x402` `blockchain` `smart-contracts` `defi` `nft` `ai` `agent` `llm` `langchain` `rag` `multi-agent` `a2a`
+
+## License
+
+MIT
