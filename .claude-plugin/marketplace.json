@@ -1,8 +1,8 @@
 {
-  "name": "public-agents",
+  "name": "megabytekim-agents",
   "owner": {
-    "name": "newyork",
-    "url": "https://github.com/newyork"
+    "name": "megabytekim",
+    "url": "https://github.com/megabytekim"
   },
   "metadata": {
     "description": "Custom Claude Code plugin collection for paper analysis and research workflows",
@@ -16,11 +16,11 @@
       "description": "Academic paper analysis expert. Systematically analyzes Computer Vision, ML, and NLP papers with template-based reviews and practical applicability assessment",
       "version": "1.0.0",
       "author": {
-        "name": "newyork",
-        "url": "https://github.com/newyork"
+        "name": "megabytekim",
+        "url": "https://github.com/megabytekim"
       },
-      "homepage": "https://github.com/newyork/public_agents",
-      "repository": "https://github.com/newyork/public_agents",
+      "homepage": "https://github.com/megabytekim/public_agents",
+      "repository": "https://github.com/megabytekim/public_agents",
       "license": "MIT",
       "keywords": [
         "paper-analysis",
