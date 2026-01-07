@@ -56,6 +56,26 @@ Claude Code의 기능, 명령어, 플러그인 개발, 설정 방법을 안내�
 "MCP 서버 설정하는 법 알려줘"
 ```
 
+### 2. agentic-dev-trends-agent
+**AI 개발 워크플로우 트렌드 검색 전문가**
+
+Claude Code, Cursor, Copilot 등 AI 코딩 도구를 활용한 코드리뷰, 리팩토링, 테스트 워크플로우 트렌드를 검색하고 분석합니다.
+
+#### 검색 토픽
+- `code-review`: AI 코드리뷰 트렌드
+- `refactoring`: AI 리팩토링 패턴
+- `testing`: AI 테스트 자동화
+- `agentic`: 에이전틱 코딩 전반
+- `all`: 모든 토픽 종합
+
+#### 사용 예시
+```
+"AI 코드리뷰 트렌드 검색해줘"
+"Claude Code 리팩토링 워크플로우 동향"
+"에이전틱 코딩 최신 트렌드"
+"AI 테스트 자동화 어떻게 하는지"
+```
+
 ## 예정된 Agents
 
 - **plugin-developer**: 플러그인 개발 자동화 (구조 생성, 검증)
@@ -67,7 +87,10 @@ Claude Code의 기능, 명령어, 플러그인 개발, 설정 방법을 안내�
 ```
 plugins/claude-workflows/
 ├── agents/
-│   └── claude-code-guide-agent.md    # Claude Code 가이드 에이전트
+│   ├── claude-code-guide-agent.md    # Claude Code 가이드 에이전트
+│   ├── agentic-dev-trends-agent.md   # AI 개발 워크플로우 트렌드 검색
+│   ├── code-analyzer-agent.md        # 외부 코드/repo 분석
+│   └── plugin-refactor-agent.md      # 플러그인 구조 리팩토링
 ├── commands/
 │   └── explain.md              # 개념 설명 명령어
 ├── skills/                      # (예정) 재사용 가능한 지식
