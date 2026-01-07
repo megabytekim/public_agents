@@ -101,6 +101,37 @@
         "./agents/x402-ethereum-agent.md"
       ],
       "skills": []
+    },
+    {
+      "name": "stock-analyzer-advanced",
+      "source": "./plugins/stock-analyzer-advanced",
+      "description": "Advanced stock analysis with Market Intelligence (MI) and Portfolio Intelligence (PI) agents. Real-time market data, company analysis, and investment strategy recommendations.",
+      "version": "1.0.0",
+      "author": {
+        "name": "megabytekim",
+        "url": "https://github.com/megabytekim"
+      },
+      "homepage": "https://github.com/megabytekim/public_agents",
+      "repository": "https://github.com/megabytekim/public_agents",
+      "license": "MIT",
+      "keywords": [
+        "stock-analysis",
+        "market-intelligence",
+        "portfolio-management",
+        "investment",
+        "financial-analysis",
+        "real-time-data"
+      ],
+      "category": "finance",
+      "strict": false,
+      "commands": [
+        "./commands/기업분석.md"
+      ],
+      "agents": [
+        "./agents/market-intelligence.md",
+        "./agents/portfolio-intelligence.md"
+      ],
+      "skills": []
     }
   ]
 }
