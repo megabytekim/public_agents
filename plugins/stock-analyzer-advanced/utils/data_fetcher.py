@@ -43,7 +43,7 @@ def get_ohlcv(
         start = start_dt.strftime("%Y%m%d")
         end = end_dt.strftime("%Y%m%d")
 
-        df = stock.get_market_ohlcv(start, end, ticker, frequency=frequency, adjusted=adjusted)
+        df = stock.get_market_ohlcv_by_date(start, end, ticker)
 
         if df.empty:
             return None
@@ -111,7 +111,7 @@ def get_fundamental(
     date: Optional[str] = None
 ) -> Optional[dict]:
     """
-    펀더멘털 지표 조회
+    펀더멘털 지표 조회 (pykrx 우선, 실패 시 네이버 금융 fallback)
 
     Args:
         ticker: 종목코드
@@ -128,26 +128,43 @@ def get_fundamental(
         }
         or None (실패 시)
     """
+    # 1차 시도: pykrx
     try:
         if date is None:
             date = datetime.now().strftime("%Y%m%d")
 
         df = stock.get_market_fundamental(date, date, ticker)
 
-        if df.empty:
-            return None
-
-        row = df.iloc[-1]
-        return {
-            "BPS": int(row["BPS"]),
-            "PER": float(row["PER"]),
-            "PBR": float(row["PBR"]),
-            "EPS": int(row["EPS"]),
-            "DIV": float(row["DIV"]),
-            "DPS": int(row["DPS"]),
-        }
+        if not df.empty:
+            row = df.iloc[-1]
+            return {
+                "BPS": int(row["BPS"]),
+                "PER": float(row["PER"]),
+                "PBR": float(row["PBR"]),
+                "EPS": int(row["EPS"]),
+                "DIV": float(row["DIV"]),
+                "DPS": int(row["DPS"]),
+            }
     except Exception:
-        return None
+        pass
+
+    # 2차 시도: 네이버 금융 fallback
+    try:
+        from utils.web_scraper import get_naver_stock_info
+        info = get_naver_stock_info(ticker)
+        if info and (info.get("per") is not None or info.get("pbr") is not None):
+            return {
+                "BPS": 0,  # 네이버에서 제공 안 함
+                "PER": float(info.get("per", 0) or 0),
+                "PBR": float(info.get("pbr", 0) or 0),
+                "EPS": 0,  # 네이버에서 제공 안 함
+                "DIV": 0.0,  # 네이버에서 제공 안 함
+                "DPS": 0,  # 네이버에서 제공 안 함
+            }
+    except Exception:
+        pass
+
+    return None
 
 
 def get_market_cap(

@@ -113,12 +113,57 @@ WebSearch("what is today's date")
 # 센티먼트는 시간에 민감 - 최신 데이터 확인 필수
 ```
 
-## STEP 1: WebSearch (빠른 스캔)
+## STEP 1: 한국 주식 - utils 스크래퍼 (최우선)
+
 ```bash
-# 한국 주식
+# 한국 주식 종토방: Bash + utils 함수 사용 (가장 빠르고 정확)
+cd /Users/newyork/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
+import sys
+sys.path.insert(0, '/Users/newyork/public_agents/plugins/stock-analyzer-advanced')
+
+from utils import get_naver_discussion
+
+ticker = "000660"  # 종목코드 변경
+
+# 종목토론방 최근 글 수집 (500자 이내)
+posts = get_naver_discussion(ticker, limit=10)
+if posts:
+    print(f"=== 종목토론방 최근 글 ({len(posts)}건) ===")
+
+    bullish_keywords = ['매수', '상승', '오른다', '간다', '대박', '저점']
+    bearish_keywords = ['매도', '하락', '내린다', '손절', '폭락', '고점']
+
+    bullish = 0
+    bearish = 0
+
+    for p in posts:
+        title = p['title']
+        print(f"[{p['date']}] {title[:40]}")
+
+        # 간단한 센티먼트 분류
+        if any(k in title for k in bullish_keywords):
+            bullish += 1
+        elif any(k in title for k in bearish_keywords):
+            bearish += 1
+
+    total = len(posts)
+    print(f"\n센티먼트 분포:")
+    print(f"  Bullish: {bullish}/{total} ({bullish/total*100:.0f}%)")
+    print(f"  Bearish: {bearish}/{total} ({bearish/total*100:.0f}%)")
+    print(f"  Neutral: {total-bullish-bearish}/{total}")
+EOF
+
+# ✅ 장점:
+# - 결과 500자 이내 (Playwright 74,000자 대비 99% 축소)
+# - 에이전트 컨텍스트 초과 문제 없음
+# - 센티먼트 키워드 분석 포함
+```
+
+## STEP 2: WebSearch (뉴스 및 커뮤니티)
+```bash
+# 한국 주식 - 추가 센티먼트
 WebSearch("SK하이닉스 종토방 반응 2026년 1월")
 WebSearch("SK하이닉스 개미 의견 2026")
-WebSearch("000660 네이버 토론방")
 
 # 미국 주식
 WebSearch("NVDA reddit wallstreetbets January 2026")
@@ -126,19 +171,14 @@ WebSearch("NVDA sentiment stocktwits")
 WebSearch("NVDA twitter retail investors")
 ```
 
-## STEP 2: Playwright (상세 수집)
+## STEP 3: Playwright (fallback / 상세 수집)
 
-### 네이버 종토방
+### 네이버 종토방 (utils로 부족할 때)
 ```python
-# 종토방 접속
+# ⚠️ utils로 충분하면 생략 가능
+# Playwright는 70,000자+ 반환하므로 주의
 browser_navigate("https://finance.naver.com/item/board.naver?code=000660")
 browser_snapshot()
-
-# 수집할 것:
-# - 최근 글 20개 제목
-# - 추천/비추천 비율
-# - 조회수 높은 글 내용
-# - 전체적인 분위기 (낙관/비관)
 ```
 
 ### Reddit
@@ -381,11 +421,13 @@ PI 통합 분석:
 ## 한국 주식
 
 ```markdown
-□ 네이버 종토방 최근 글 20개 스캔
-□ 추천/비추천 비율 확인
+□ Bash + utils로 get_naver_discussion() 실행 (최우선)
+□ 센티먼트 키워드 분석 (Bullish/Bearish 비율)
+□ WebSearch로 추가 커뮤니티 의견 수집
 □ 게시글 볼륨 변화 체크
 □ 과열/패닉 키워드 탐지
 □ 이상 징후 체크
+□ 필요시 Playwright로 상세 수집 (fallback)
 ```
 
 ## 미국 주식

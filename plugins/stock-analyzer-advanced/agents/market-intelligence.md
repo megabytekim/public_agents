@@ -100,20 +100,53 @@ WebSearch("NVDA analyst rating January 2026")
 # "NVDA news" (X)
 ```
 
-## STEP 4: Playwright (한국 주식 및 재무제표)
+## STEP 4: 한국 주식 - utils 스크래퍼 (최우선)
 
 ```bash
-# 한국 주식: FnGuide 필수 사용
+# 한국 주식: Bash + utils 함수 사용 (가장 빠르고 정확)
+cd /Users/newyork/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
+import sys
+sys.path.insert(0, '/Users/newyork/public_agents/plugins/stock-analyzer-advanced')
+
+from utils import get_naver_stock_info, get_naver_discussion
+
+ticker = "048910"  # 종목코드 변경
+
+# 1. 시세 + 투자지표 (300자 이내)
+info = get_naver_stock_info(ticker)
+if info:
+    print(f"종목명: {info.get('name')}")
+    print(f"현재가: {info.get('price'):,}원")
+    print(f"전일대비: {info.get('change'):+,}원 ({info.get('change_pct'):+.2f}%)")
+    print(f"시가: {info.get('open'):,} / 고가: {info.get('high'):,} / 저가: {info.get('low'):,}")
+    print(f"거래량: {info.get('volume'):,}")
+    print(f"시가총액: {info.get('market_cap')}억")
+    print(f"PER: {info.get('per')} / PBR: {info.get('pbr')}")
+    print(f"외국인비율: {info.get('foreign_ratio')}%")
+
+# 2. 종목토론방 센티먼트 (500자 이내)
+posts = get_naver_discussion(ticker, limit=5)
+if posts:
+    print("\n최근 종목토론:")
+    for p in posts:
+        print(f"  [{p['date']}] {p['title'][:30]}")
+EOF
+
+# ✅ 장점:
+# - 결과 300~500자 (Playwright 74,000자 대비 99% 축소)
+# - 필요한 데이터만 정확히 추출
+# - 에이전트 컨텍스트 초과 문제 없음
+```
+
+## STEP 5: Playwright (fallback / 상세 재무제표)
+
+```bash
+# utils로 부족할 때만 사용 (FnGuide 재무제표 등)
 browser_navigate("https://comp.fnguide.com/SVO2/ASP/SVD_main.asp?pGB=1&gicode=A005930")
 browser_snapshot()
 
-# 미국 주식: Yahoo Finance 차트
-browser_navigate("https://finance.yahoo.com/quote/NVDA")
-browser_snapshot()
-
-# ✅ 한국 주식 데이터 소스:
-# - FnGuide (재무제표, 밸류에이션)
-# - Naver Finance (실시간 가격, 뉴스)
+# ⚠️ 주의: Playwright 결과는 70,000자+ 반환됨
+# 가능하면 utils 스크래퍼 우선 사용
 ```
 
 ---
@@ -135,9 +168,11 @@ browser_snapshot()
 
 ```markdown
 □ 오늘 날짜 확인 (2026-01-07)
-□ Playwright로 FnGuide 접속
-□ 현재가, PER, PBR, 배당수익률 확인
+□ Bash + utils로 get_naver_stock_info() 실행 (최우선)
+□ 현재가, PER, PBR, 외국인비율 확인
+□ get_naver_discussion()으로 종목토론 센티먼트 확인
 □ WebSearch로 최신 뉴스 (날짜 포함)
+□ 필요시 Playwright로 FnGuide 재무제표 (fallback)
 □ 모든 데이터에 날짜 + 출처 명시
 ```
 
@@ -264,9 +299,10 @@ class DataVerification:
 
 | 항목 | 1순위 | 2순위 | 3순위 |
 |------|-------|-------|-------|
-| 실시간 가격 | FnGuide | Naver Finance | - |
+| 실시간 가격 | **utils: get_naver_stock_info()** | FnGuide | Playwright |
+| 종목토론 | **utils: get_naver_discussion()** | WebSearch | - |
 | 뉴스 | WebSearch | 한경 | 매경 |
-| 재무제표 | FnGuide | DART | - |
+| 재무제표 | FnGuide (Playwright) | DART | - |
 | 애널리스트 | FnGuide | 증권사 리포트 | - |
 
 ---
