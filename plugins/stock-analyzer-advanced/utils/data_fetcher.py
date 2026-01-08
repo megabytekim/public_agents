@@ -1,0 +1,258 @@
+"""pykrx 래퍼 함수
+
+다른 에이전트가 사용할 데이터 조회 인프라 함수
+실패 시 None 반환
+"""
+from datetime import datetime, timedelta
+from typing import Optional
+
+import pandas as pd
+from pykrx import stock
+
+
+def get_ohlcv(
+    ticker: str,
+    days: int = 60,
+    end_date: Optional[str] = None,
+    frequency: str = "d",
+    adjusted: bool = True
+) -> Optional[pd.DataFrame]:
+    """
+    OHLCV 데이터 조회
+
+    Args:
+        ticker: 종목코드 (예: "005930")
+        days: 조회 일수 (기본 60)
+        end_date: 종료일 YYYYMMDD (기본 오늘)
+        frequency: "d"(일), "m"(월), "y"(연)
+        adjusted: True=수정주가, False=원주가
+
+    Returns:
+        DataFrame or None (실패 시)
+
+    Columns:
+        시가, 고가, 저가, 종가, 거래량, 거래대금, 등락률
+    """
+    try:
+        if end_date is None:
+            end_dt = datetime.now()
+        else:
+            end_dt = datetime.strptime(end_date, "%Y%m%d")
+
+        start_dt = end_dt - timedelta(days=days * 2)  # 영업일 고려하여 여유있게
+        start = start_dt.strftime("%Y%m%d")
+        end = end_dt.strftime("%Y%m%d")
+
+        df = stock.get_market_ohlcv(start, end, ticker, frequency=frequency, adjusted=adjusted)
+
+        if df.empty:
+            return None
+
+        # days 개수만큼 자르기
+        return df.tail(days)
+
+    except Exception:
+        return None
+
+
+def get_ticker_name(ticker: str) -> Optional[str]:
+    """
+    종목명 조회
+
+    Args:
+        ticker: 종목코드 (예: "005930")
+
+    Returns:
+        종목명 or None (실패 시)
+
+    Example:
+        >>> get_ticker_name("005930")
+        "삼성전자"
+    """
+    try:
+        name = stock.get_market_ticker_name(ticker)
+        if not name:
+            return None
+        return name
+    except Exception:
+        return None
+
+
+def get_ticker_list(
+    date: Optional[str] = None,
+    market: str = "KOSPI"
+) -> Optional[list]:
+    """
+    전체 종목 리스트 조회
+
+    Args:
+        date: 조회일 YYYYMMDD (기본 오늘)
+        market: "KOSPI", "KOSDAQ", "KONEX", "ALL"
+
+    Returns:
+        ['005930', '000660', ...] or None (실패 시)
+    """
+    try:
+        if date is None:
+            date = datetime.now().strftime("%Y%m%d")
+
+        tickers = stock.get_market_ticker_list(date, market=market)
+
+        if not tickers:
+            return None
+
+        return list(tickers)
+    except Exception:
+        return None
+
+
+def get_fundamental(
+    ticker: str,
+    date: Optional[str] = None
+) -> Optional[dict]:
+    """
+    펀더멘털 지표 조회
+
+    Args:
+        ticker: 종목코드
+        date: 조회일 YYYYMMDD (기본 오늘)
+
+    Returns:
+        {
+            "BPS": int,      # 주당순자산
+            "PER": float,    # 주가수익비율
+            "PBR": float,    # 주가순자산비율
+            "EPS": int,      # 주당순이익
+            "DIV": float,    # 배당수익률 (%)
+            "DPS": int       # 주당배당금
+        }
+        or None (실패 시)
+    """
+    try:
+        if date is None:
+            date = datetime.now().strftime("%Y%m%d")
+
+        df = stock.get_market_fundamental(date, date, ticker)
+
+        if df.empty:
+            return None
+
+        row = df.iloc[-1]
+        return {
+            "BPS": int(row["BPS"]),
+            "PER": float(row["PER"]),
+            "PBR": float(row["PBR"]),
+            "EPS": int(row["EPS"]),
+            "DIV": float(row["DIV"]),
+            "DPS": int(row["DPS"]),
+        }
+    except Exception:
+        return None
+
+
+def get_market_cap(
+    ticker: str,
+    date: Optional[str] = None
+) -> Optional[dict]:
+    """
+    시가총액 정보 조회
+
+    Args:
+        ticker: 종목코드
+        date: 조회일 YYYYMMDD (기본 오늘)
+
+    Returns:
+        {
+            "시가총액": int,
+            "거래량": int,
+            "거래대금": int,
+            "상장주식수": int,
+            "외국인보유주식수": int
+        }
+        or None (실패 시)
+    """
+    try:
+        if date is None:
+            date = datetime.now().strftime("%Y%m%d")
+
+        df = stock.get_market_cap(date, date, ticker)
+
+        if df.empty:
+            return None
+
+        row = df.iloc[-1]
+        return {
+            "시가총액": int(row["시가총액"]),
+            "거래량": int(row["거래량"]),
+            "거래대금": int(row["거래대금"]),
+            "상장주식수": int(row["상장주식수"]),
+            "외국인보유주식수": int(row.get("외국인보유주식수", 0)),
+        }
+    except Exception:
+        return None
+
+
+def get_investor_trading(
+    ticker: str,
+    days: int = 20
+) -> Optional[pd.DataFrame]:
+    """
+    투자자별 순매수
+
+    Args:
+        ticker: 종목코드
+        days: 조회 일수 (기본 20)
+
+    Returns:
+        DataFrame with columns:
+            기관합계, 기타법인, 개인, 외국인합계, 전체
+        or None (실패 시)
+    """
+    try:
+        end_dt = datetime.now()
+        start_dt = end_dt - timedelta(days=days * 2)
+
+        start = start_dt.strftime("%Y%m%d")
+        end = end_dt.strftime("%Y%m%d")
+
+        df = stock.get_market_trading_value_by_date(start, end, ticker)
+
+        if df.empty:
+            return None
+
+        return df.tail(days)
+    except Exception:
+        return None
+
+
+def get_short_selling(
+    ticker: str,
+    days: int = 20
+) -> Optional[pd.DataFrame]:
+    """
+    공매도 현황 (T+2일 지연)
+
+    Args:
+        ticker: 종목코드
+        days: 조회 일수 (기본 20)
+
+    Returns:
+        DataFrame with columns:
+            공매도, 잔고, 공매도금액, 잔고금액
+        or None (실패 시)
+    """
+    try:
+        end_dt = datetime.now()
+        start_dt = end_dt - timedelta(days=days * 2)
+
+        start = start_dt.strftime("%Y%m%d")
+        end = end_dt.strftime("%Y%m%d")
+
+        df = stock.get_shorting_status_by_date(start, end, ticker)
+
+        if df.empty:
+            return None
+
+        return df.tail(days)
+    except Exception:
+        return None

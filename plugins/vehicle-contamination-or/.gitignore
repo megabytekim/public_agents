@@ -1,0 +1,10 @@
+# Private folder (internal information)
+private/
+
+# Local workspace
+local/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
