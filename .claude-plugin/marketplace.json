@@ -103,6 +103,36 @@
       "skills": []
     },
     {
+      "name": "vehicle-contamination-or",
+      "source": "./plugins/vehicle-contamination-or",
+      "description": "Vehicle contamination detection research plugin. Explores Ordinal Regression + Object Detection methods for car wash recommendation systems.",
+      "version": "1.0.0",
+      "author": {
+        "name": "megabytekim",
+        "url": "https://github.com/megabytekim"
+      },
+      "homepage": "https://github.com/megabytekim/public_agents",
+      "repository": "https://github.com/megabytekim/public_agents",
+      "license": "MIT",
+      "keywords": [
+        "ordinal-regression",
+        "object-detection",
+        "vehicle-contamination",
+        "paper-research",
+        "deep-learning"
+      ],
+      "category": "research",
+      "strict": false,
+      "commands": [],
+      "agents": [
+        "./agents/paper-researcher.md",
+        "./agents/paper-finder.md",
+        "./agents/paper-processor.md",
+        "./agents/ml-agent.md"
+      ],
+      "skills": []
+    },
+    {
       "name": "stock-analyzer-advanced",
       "source": "./plugins/stock-analyzer-advanced",
       "description": "Advanced stock analysis with Market Intelligence (MI) and Portfolio Intelligence (PI) agents. Real-time market data, company analysis, and investment strategy recommendations.",
