@@ -136,20 +136,46 @@ for paper in new_papers:
 
 > **중요**: 단일 메시지에서 여러 Task를 병렬로 호출합니다.
 > Nested Task 제한으로 인해 중간 오케스트레이터 없이 직접 호출합니다.
+> **컨텍스트 안정성**: 최대 **8개**씩 배치로 나눠서 처리 (컨텍스트 유실 방지)
 
 ```python
+MAX_PARALLEL = 8  # 컨텍스트 안정성을 위해 8개로 제한
+
 # 논문 유형별 분류
 survey_papers = [p for p in papers_to_process if p["is_survey"]]
 regular_papers = [p for p in papers_to_process if not p["is_survey"]]
 
-# 병렬 Task 호출 (단일 메시지에 여러 Task)
-tasks = []
+# Task 목록 생성
+all_tasks = []
 
 for paper in regular_papers:
-    tasks.append(Task(
-        subagent_type="vehicle-contamination-or:paper-processor",
-        description=f"Process {paper['slug'][:20]}",
-        prompt=f"""
+    all_tasks.append({
+        "type": "paper-processor",
+        "paper": paper
+    })
+
+for paper in survey_papers:
+    all_tasks.append({
+        "type": "survey-processor",
+        "paper": paper
+    })
+
+# 배치 분할 (8개씩)
+batches = [all_tasks[i:i+MAX_PARALLEL] for i in range(0, len(all_tasks), MAX_PARALLEL)]
+
+all_results = []
+for batch_idx, batch in enumerate(batches):
+    print(f"배치 {batch_idx + 1}/{len(batches)} 처리 중... ({len(batch)}개)")
+
+    # 현재 배치의 Task들을 병렬 호출
+    tasks = []
+    for item in batch:
+        paper = item["paper"]
+        if item["type"] == "paper-processor":
+            tasks.append(Task(
+                subagent_type="vehicle-contamination-or:paper-processor",
+                description=f"Process {paper['slug'][:20]}",
+                prompt=f"""
 논문 정보:
 {json.dumps(paper, indent=2, ensure_ascii=False)}
 
@@ -161,13 +187,12 @@ for paper in regular_papers:
 위 위치에 summary.md를 생성하세요.
 완료 후 결과 JSON 반환: {{"success": true, "slug": "{paper['slug']}"}}
 """
-    ))
-
-for paper in survey_papers:
-    tasks.append(Task(
-        subagent_type="vehicle-contamination-or:survey-processor",
-        description=f"Process survey {paper['slug'][:20]}",
-        prompt=f"""
+            ))
+        else:  # survey-processor
+            tasks.append(Task(
+                subagent_type="vehicle-contamination-or:survey-processor",
+                description=f"Process survey {paper['slug'][:20]}",
+                prompt=f"""
 논문 정보:
 {json.dumps(paper, indent=2, ensure_ascii=False)}
 
@@ -179,10 +204,13 @@ for paper in survey_papers:
 위 위치에 survey_summary.md를 생성하세요.
 완료 후 결과 JSON 반환: {{"success": true, "slug": "{paper['slug']}"}}
 """
-    ))
+            ))
 
-# 모든 Task 결과 수집
-results = await gather(tasks)
+    # 배치 결과 수집 후 다음 배치로
+    batch_results = await gather(tasks)
+    all_results.extend(batch_results)
+
+results = all_results
 ```
 
 ### Step 7: Registry 업데이트 (메인에서 직접)
@@ -300,9 +328,12 @@ assert len(registry["papers"]) == len([l for l in index_content.split("\n") if l
 
 ## 병렬 처리 참고
 
-- **최대 병렬 수**: 10개 (Claude Code 제한)
-- **10개 초과 시**: 자동 큐잉
+- **실행 모드**: **foreground에서 실행** (`run_in_background: false` 또는 생략)
+  - background 실행 시 결과 추적이 어려워 Registry 업데이트 누락 위험
+- **최대 병렬 수**: **8개** (컨텍스트 안정성 위해 제한)
+- **8개 초과 시**: 배치로 분할하여 순차 처리 (배치 내에서는 병렬)
 - **에러 핸들링**: 개별 Task 실패해도 다른 Task 계속 진행
+- **예시**: 12개 논문 → 배치1(8개) 완료 후 → 배치2(4개) 처리
 
 ---
 

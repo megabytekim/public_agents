@@ -70,6 +70,48 @@ for actual in actual_commands:
         warnings.append(f"⚠️ Unregistered command: {actual}")
 ```
 
+#### 3.3 캐시 vs 실제 파일 비교 (Orphaned Cache 탐지)
+
+> **중요**: Claude Code는 플러그인을 캐시에 저장합니다. 실제 파일이 삭제되어도 캐시에 남아있으면 에이전트 목록에 계속 나타납니다.
+
+```python
+# 캐시 경로
+cache_base = "~/.claude/plugins/cache/megabytekim-agents"
+plugin_cache_path = f"{cache_base}/{plugin_name}"
+
+# 캐시된 버전들 확인
+cached_versions = Bash(f"ls {plugin_cache_path}/ 2>/dev/null")  # 예: 1.0.0, 1.1.0
+
+for version in cached_versions:
+    # 캐시된 agents
+    cached_agents = Glob(f"{plugin_cache_path}/{version}/agents/*.md")
+
+    # 실제 agents와 비교
+    for cached in cached_agents:
+        filename = os.path.basename(cached)
+        actual_path = f"{source_dir}/agents/{filename}"
+
+        if not file_exists(actual_path):
+            orphaned.append({
+                "type": "agent",
+                "cached_path": cached,
+                "expected_path": actual_path
+            })
+            warnings.append(f"👻 Orphaned cache: {filename} (캐시에만 존재)")
+```
+
+##### Orphaned Cache 해결 방법
+
+```bash
+# 특정 파일만 삭제
+rm ~/.claude/plugins/cache/megabytekim-agents/{plugin_name}/{version}/agents/{orphaned_file}.md
+
+# 또는 플러그인 캐시 전체 삭제 (재설치됨)
+rm -rf ~/.claude/plugins/cache/megabytekim-agents/{plugin_name}/
+```
+
+> 캐시 삭제 후 **Claude Code 재시작** 필요
+
 ### Step 4: Git Status 체크
 
 ```bash
@@ -102,6 +144,11 @@ cd {base_path} && git status --porcelain
 ### ⚠️ 경고 (있다면)
 - Unregistered command: ./commands/yyy.md
 
+### 👻 Orphaned Cache (있다면)
+| 파일 | 캐시 위치 | 조치 |
+|------|----------|------|
+| paper-researcher.md | ~/.claude/plugins/cache/.../1.1.0/agents/ | `rm {path}` |
+
 ### 📝 Git Status
 ```
 M  plugins/xxx/agents/paper-processor.md
@@ -126,8 +173,9 @@ M  .claude-plugin/marketplace.json
 |---|-----------|------|
 | 1 | **파일 존재** | marketplace.json에 등록된 파일이 실제 존재하는지 |
 | 2 | **미등록 파일** | 실제 존재하지만 marketplace.json에 없는 파일 |
-| 3 | **Git 상태** | 커밋 안 된 변경사항 |
-| 4 | **재시작 필요** | agents/commands 변경 시 재시작 필요 |
+| 3 | **Orphaned Cache** | 캐시에만 존재하고 실제 폴더에 없는 파일 (👻 유령 에이전트) |
+| 4 | **Git 상태** | 커밋 안 된 변경사항 |
+| 5 | **재시작 필요** | agents/commands 변경 시 재시작 필요 |
 
 ---
 
@@ -179,4 +227,16 @@ claude  # 재시작
 ```
 감지: agents/old-agent.md가 존재하지 않음
 제안: marketplace.json에서 "./agents/old-agent.md" 제거?
+```
+
+### 3. Orphaned Cache 삭제
+```
+감지: paper-researcher.md가 캐시에만 존재 (실제 파일 없음)
+위치: ~/.claude/plugins/cache/megabytekim-agents/vehicle-contamination-or/1.1.0/agents/paper-researcher.md
+제안: 캐시 파일 삭제? (삭제 후 Claude Code 재시작 필요)
+```
+
+```bash
+# 실행 명령어
+rm ~/.claude/plugins/cache/megabytekim-agents/{plugin}/{version}/agents/{file}.md
 ```
