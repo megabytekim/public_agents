@@ -84,9 +84,11 @@ print(f"검색 결과: {len(results['papers'])}개")
 print(f"신규 논문: {len(new_papers)}개")
 ```
 
-### Step 5: 각 논문 처리 (반복)
+### Step 5: 각 논문 준비 (다운로드 + Citation + Slug)
 
 ```python
+papers_to_process = []
+
 for paper in new_papers:
     paper_id = paper["id"].split("v")[0]  # 버전 제거
 
@@ -110,34 +112,47 @@ for paper in new_papers:
     # 5.4 Survey 여부 판별
     is_survey = any(word in paper["title"].lower() for word in ["survey", "review", "overview"])
 
-    # 5.5 paper-researcher 호출
-    Task(
-        subagent_type="vehicle-contamination-or:paper-researcher",
-        prompt=f"""
-논문 처리 요청:
+    # 5.5 배치 목록에 추가
+    papers_to_process.append({
+        "id": f"arxiv:{paper_id}",
+        "title": paper["title"],
+        "year": int(year),
+        "url": f"https://arxiv.org/abs/{paper_id}",
+        "citations": citations if citations != "XX" else None,
+        "slug": slug,
+        "is_survey": is_survey,
+        "file_path": f"~/.arxiv-mcp-server/papers/{paper_id}.md"
+    })
+```
+
+### Step 6: paper-researcher 에이전트 호출 (배치)
+
+```python
+# 배치 형태로 paper-researcher 호출 (오케스트레이터)
+Task(
+    subagent_type="vehicle-contamination-or:paper-researcher",
+    prompt=f"""
+배치 논문 처리 요청:
 
 {{
-  "paper": {{
-    "id": "arxiv:{paper_id}",
-    "title": "{paper['title']}",
-    "year": {year},
-    "url": "https://arxiv.org/abs/{paper_id}",
-    "citations": {citations if citations != "XX" else "null"},
-    "slug": "{slug}",
-    "is_survey": {str(is_survey).lower()},
-    "file_path": "~/.arxiv-mcp-server/papers/{paper_id}.md"
+  "papers": {json.dumps(papers_to_process, indent=2, ensure_ascii=False)},
+  "options": {{
+    "retry_failed": true,
+    "max_retries": 2,
+    "continue_on_error": true
   }}
 }}
 
-위 논문을 처리해주세요:
-1. 중복 체크 (이미 했지만 재확인)
-2. {"survey-processor" if is_survey else "paper-processor"} 호출
-3. registry.json 업데이트
+위 논문들을 처리해주세요:
+1. 각 논문에 대해 중복 체크
+2. survey-processor 또는 paper-processor 호출 (재시도 포함)
+3. 성공한 논문만 registry.json에 일괄 추가
+4. 상세 리포트 출력 (성공/실패/스킵 목록)
 """
-    )
+)
 ```
 
-### Step 6: 최종 보고
+### Step 7: 최종 보고
 
 ```markdown
 ## ✅ Paper Research 완료
