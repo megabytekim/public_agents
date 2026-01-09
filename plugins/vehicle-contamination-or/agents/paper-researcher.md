@@ -480,6 +480,14 @@ Orchestrator:
 | paper-finder 실패 | 에러 보고 후 중단 |
 | paper-processor 개별 실패 | 실패 기록, 나머지 계속 |
 | registry write 실패 | 재시도 1회 후 에러 보고 |
+| citation 조회 실패 | `cXX` 사용 (숫자 추측 금지) |
+
+---
+
+## ⛔ 금지 사항
+
+- **지시문에 없는 파일 생성 금지**: `registry.json`, `paper/{slug}/summary.md`, `paper/{slug}/survey_summary.md` 외 파일 생성 불가
+- **Citation hallucination 금지**: API 조회 실패 시 반드시 `cXX` 사용, 임의의 숫자 사용 금지
 
 ---
 
