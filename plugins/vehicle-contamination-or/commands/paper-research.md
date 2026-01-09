@@ -23,14 +23,16 @@ argument-hint: [query] --limit [N]
 │  /paper-research (메인 컨텍스트, MCP 접근 가능)           │
 │                                                         │
 │  1. arXiv 검색 (MCP)                                    │
-│  2. Registry 중복 체크                                   │
+│  2. Index 중복 체크 (registry-index.txt, 경량)          │
 │  3. 논문 다운로드 (MCP)                                  │
 │  4. Citation 조회 (Semantic Scholar)                    │
 │  5. Slug 생성                                           │
 │  6. 병렬 Task 호출 ─────────────────────┐               │
 │       ├─ paper-processor (일반 논문)    │ 병렬          │
 │       └─ survey-processor (Survey)     │               │
-│  7. Registry 업데이트 (메인에서 직접)    ◀──────────────┘ │
+│  7. Registry 업데이트 (2개 파일 동시!)   ◀──────────────┘ │
+│       ├─ registry.json (전체 메타데이터)                │
+│       └─ registry-index.txt (ID만)                     │
 │  8. 최종 보고                                           │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -47,15 +49,18 @@ limit = args.get("--limit", 5)
 categories = args.get("--categories", ["cs.CV", "cs.LG", "cs.AI"])
 ```
 
-### Step 2: Registry 로드 (중복 체크용)
+### Step 2: Index 로드 (중복 체크용)
+
+> **컨텍스트 최적화**: registry.json 대신 경량 index 파일 사용 (~20바이트/논문)
 
 ```python
-registry = Read("plugins/vehicle-contamination-or/private/registry.json")
+# 경량 인덱스 파일 읽기 (registry.json 대신)
+index_content = Read("plugins/vehicle-contamination-or/private/registry-index.txt")
 existing_ids = set()
-for paper in registry["papers"]:
-    existing_ids.add(paper["id"])
-    existing_ids.add(paper["url"])
-    existing_ids.add(paper["title"].lower().strip())
+for line in index_content.strip().split("\n"):
+    line = line.strip()
+    if line and not line.startswith("#"):  # 주석 제외
+        existing_ids.add(line)
 ```
 
 ### Step 3: arXiv 검색
@@ -182,12 +187,17 @@ results = await gather(tasks)
 
 ### Step 7: Registry 업데이트 (메인에서 직접)
 
+> **중요**: `registry.json`과 `registry-index.txt` 두 파일을 **반드시 동시에** 업데이트해야 합니다.
+> 동기화가 어긋나면 중복 체크 실패 또는 데이터 불일치 발생.
+
 ```python
-# 성공한 논문만 registry에 추가
+# 1. registry.json 로드 (업데이트용 - 이때만 전체 파일 읽음)
+registry = Read("plugins/vehicle-contamination-or/private/registry.json")
 today = datetime.now().strftime("%Y-%m-%d")
 
+# 2. 성공한 논문 수집
+new_ids = []
 for paper in papers_to_process:
-    # Task 결과에서 성공 여부 확인
     if paper_succeeded(paper):
         new_entry = {
             "id": paper["id"],
@@ -204,14 +214,33 @@ for paper in papers_to_process:
             "is_survey": paper["is_survey"]
         }
         registry["papers"].append(new_entry)
+        new_ids.append(paper["id"])  # index용 ID 수집
 
-# Registry 저장
+# 3. registry.json 저장
 registry["last_updated"] = today
 Write(
     "plugins/vehicle-contamination-or/private/registry.json",
     json.dumps(registry, indent=2, ensure_ascii=False)
 )
+
+# 4. registry-index.txt에 새 ID 추가 (append)
+index_content = Read("plugins/vehicle-contamination-or/private/registry-index.txt")
+for new_id in new_ids:
+    index_content += f"\n{new_id}"
+Write(
+    "plugins/vehicle-contamination-or/private/registry-index.txt",
+    index_content.strip() + "\n"  # 마지막 줄바꿈 보장
+)
+
+# 5. 동기화 검증 (선택적)
+assert len(registry["papers"]) == len([l for l in index_content.split("\n") if l.strip() and not l.startswith("#")])
 ```
+
+#### 동기화 체크리스트
+
+- [ ] registry.json에 새 논문 추가됨
+- [ ] registry-index.txt에 새 ID 추가됨
+- [ ] 두 파일의 논문 수가 일치함
 
 ### Step 8: 최종 보고
 
@@ -237,6 +266,7 @@ Write(
 
 ### 저장 위치
 - Registry: plugins/vehicle-contamination-or/private/registry.json
+- Index: plugins/vehicle-contamination-or/private/registry-index.txt
 - 논문: plugins/vehicle-contamination-or/private/paper/{slug}/
 ```
 

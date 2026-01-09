@@ -198,7 +198,8 @@ plugins/vehicle-contamination-or/
 │   ├── arxiv-download.md     # 다운로드 + citation 스킬
 │   └── paper-process.md      # 단일 논문 처리 스킬
 ├── private/                  # gitignore (내부 정보)
-│   ├── registry.json         # 논문 인덱스 (중복 방지)
+│   ├── registry.json         # 논문 전체 메타데이터
+│   ├── registry-index.txt    # 중복 체크용 경량 인덱스 (ID만)
 │   ├── paper/                # 논문별 폴더
 │   │   └── {slug}-c{N}/      # 폴더명에 citation 포함
 │   │       ├── summary.md    # 일반 논문 요약
