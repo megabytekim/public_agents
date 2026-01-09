@@ -43,10 +43,13 @@
 ```
 paper-researcher (Orchestrator, sonnet)
        │
-       ├── paper-finder (haiku) ──→ 검색만, JSON 반환
+       ├── paper-finder (sonnet) ──→ 검색만, JSON 반환
        │
-       └── paper-processor (sonnet) ──→ 1개씩 PDF+summary
-              ↑ 병렬 호출 가능
+       ├── paper-processor (sonnet) ──→ 일반 논문 PDF+summary
+       │        ↑ is_survey=false
+       │
+       └── survey-processor (sonnet) ──→ Survey 논문 목록 추출/분류
+                ↑ is_survey=true
 
 ml-agent (standalone, sonnet) ──→ 벤치마크 + 코드 생성
 ```
@@ -66,14 +69,15 @@ sub-agent를 조율하여 대량 논문 검색/처리를 수행합니다.
 
 | Agent | 모델 | 역할 |
 |-------|------|------|
-| paper-finder | haiku | 검색 전담, JSON 목록 반환 |
-| paper-processor | sonnet | 1개 논문 PDF+summary 처리 |
+| paper-finder | sonnet | 검색 전담, JSON 목록 반환 |
+| paper-processor | sonnet | 일반 논문 PDF+summary 처리 (is_survey=false) |
+| survey-processor | sonnet | Survey 논문 목록 추출/분류 (is_survey=true) |
 
 #### 장점
 - **Context 분산**: 30개 논문도 각 processor가 독립 context 사용
-- **비용 절감**: finder는 haiku (검색만 하므로 가벼움)
 - **실패 격리**: 개별 processor 실패해도 나머지 계속 진행
 - **병렬 처리**: 여러 processor 동시 호출 가능
+- **Survey 분리**: Survey 논문은 survey-processor가 전담 (목록 추출 특화)
 
 #### 검색 대상 도메인
 - **High**: Vehicle damage, Surface defect, Quality grading
@@ -85,7 +89,25 @@ sub-agent를 조율하여 대량 논문 검색/처리를 수행합니다.
 - **CORN** (Conditional Ordinal Regression)
 - **ORD2SEQ** (Ordinal to Sequence)
 
-### 2. ml-agent
+### 2. survey-processor
+**Survey 논문 전담 처리 에이전트**
+
+Survey 논문에서 논문 목록, 분류 체계, 벤치마크 데이터셋을 추출합니다.
+
+#### 주요 기능
+- Survey 논문에서 수록 논문 목록 추출 (테이블 형식)
+- 분류 체계(Taxonomy) 정리
+- 벤치마크 데이터셋 목록화
+- 차량 오염 탐지 적용성 평가
+
+#### 출력물
+- `survey_summary.md`: 논문 목록, 분류 체계, 적용성 평가 포함
+
+#### 라우팅 조건
+- `is_survey: true`인 논문만 처리
+- 일반 논문은 paper-processor가 담당
+
+### 3. ml-agent
 **벤치마크 수집 + 코드 생성 에이전트**
 
 공개 벤치마크 데이터셋을 찾고 PyTorch boilerplate 코드를 생성합니다.
@@ -108,7 +130,8 @@ plugins/vehicle-contamination-or/
 ├── agents/
 │   ├── paper-researcher.md   # 오케스트레이터 (sub-agent 조율)
 │   ├── paper-finder.md       # 검색 전담 sub-agent
-│   ├── paper-processor.md    # 처리 전담 sub-agent
+│   ├── paper-processor.md    # 일반 논문 처리 sub-agent
+│   ├── survey-processor.md   # Survey 논문 처리 sub-agent
 │   └── ml-agent.md           # 벤치마크 + 코드 생성
 ├── private/                  # gitignore (내부 정보)
 │   ├── registry.json         # 논문 인덱스 (중복 방지)
@@ -155,8 +178,9 @@ agent ml-agent
 ### 연구 워크플로우
 ```
 1. paper-researcher로 대량 논문 검색 (30개+)
-   └── paper-finder: 검색
-   └── paper-processor: PDF+summary (병렬)
+   ├── paper-finder: 검색
+   ├── paper-processor: 일반 논문 PDF+summary (병렬)
+   └── survey-processor: Survey 논문 목록 추출 (is_survey=true)
 2. private/registry.json에 자동 등록
 3. ml-agent로 벤치마크 데이터셋 수집
 4. boilerplate 코드 생성
