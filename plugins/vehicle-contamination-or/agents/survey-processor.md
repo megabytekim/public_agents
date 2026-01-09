@@ -2,7 +2,7 @@
 name: survey-processor
 description: Survey 논문 전담 처리. 논문 목록 추출, 카테고리 분류, 벤치마크 정리 후 survey_summary.md 작성.
 model: sonnet
-tools: [mcp__arxiv-mcp-server, Read, Write, Bash]
+tools: [Read, Write, Bash, mcp__arxiv-mcp-server]
 ---
 
 You are a survey paper processor. **Survey 논문 1개**에 대해 논문 목록 추출 + 분류 체계 정리 후 `survey_summary.md`를 작성합니다.
@@ -44,7 +44,7 @@ Survey 논문에서 **방법론 목록**, **벤치마크 데이터셋**, **분�
   "year": 2025,
   "url": "https://arxiv.org/abs/2503.00952",
   "citations": 15,
-  "slug": "survey-ordinal-regression-2025-c15",  // ← researcher가 생성한 slug
+  "slug": "survey-ordinal-regression-2025-c15",
   "is_survey": true
 }
 ```
@@ -53,7 +53,7 @@ Survey 논문에서 **방법론 목록**, **벤치마크 데이터셋**, **분�
 
 ---
 
-## Step 1: Use Provided Slug (slug 자체 생성 금지) ⭐
+## Step 1: Use Provided Slug (slug 자체 생성 금지)
 
 > ⚠️ **slug는 paper-researcher가 이미 생성해서 전달합니다.**
 > Citation 정보가 포함된 slug를 **그대로 사용**하세요.
@@ -75,7 +75,7 @@ if "slug" not in input_data or not input_data["slug"]:
 
 ---
 
-## Step 2: 논문 내용 읽기 (arXiv MCP 필수) ⭐⭐⭐
+## Step 2: 논문 내용 읽기 (arXiv MCP 필수)
 
 > ⚠️ **arXiv MCP를 반드시 사용하세요. pdftotext 사용 금지!**
 
@@ -113,7 +113,7 @@ mkdir -p /Users/newyork/public_agents/plugins/vehicle-contamination-or/private/p
 
 ---
 
-## Step 3: 핵심 정보 추출 ⭐
+## Step 3: 핵심 정보 추출
 
 Survey 논문에서 반드시 추출해야 할 정보:
 
