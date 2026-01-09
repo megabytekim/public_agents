@@ -27,9 +27,11 @@ argument-hint: [query] --limit [N]
 │  3. 논문 다운로드 (MCP)                                  │
 │  4. Citation 조회 (Semantic Scholar)                    │
 │  5. Slug 생성                                           │
-│  6. paper-researcher 에이전트 호출 (Task)               │
-│       └→ survey-processor 또는 paper-processor          │
-│       └→ registry 업데이트                              │
+│  6. 병렬 Task 호출 ─────────────────────┐               │
+│       ├─ paper-processor (일반 논문)    │ 병렬          │
+│       └─ survey-processor (Survey)     │               │
+│  7. Registry 업데이트 (메인에서 직접)    ◀──────────────┘ │
+│  8. 최종 보고                                           │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -125,34 +127,93 @@ for paper in new_papers:
     })
 ```
 
-### Step 6: paper-researcher 에이전트 호출 (배치)
+### Step 6: 병렬 Task 호출 (paper-processor / survey-processor)
+
+> **중요**: 단일 메시지에서 여러 Task를 병렬로 호출합니다.
+> Nested Task 제한으로 인해 중간 오케스트레이터 없이 직접 호출합니다.
 
 ```python
-# 배치 형태로 paper-researcher 호출 (오케스트레이터)
-Task(
-    subagent_type="vehicle-contamination-or:paper-researcher",
-    prompt=f"""
-배치 논문 처리 요청:
+# 논문 유형별 분류
+survey_papers = [p for p in papers_to_process if p["is_survey"]]
+regular_papers = [p for p in papers_to_process if not p["is_survey"]]
 
-{{
-  "papers": {json.dumps(papers_to_process, indent=2, ensure_ascii=False)},
-  "options": {{
-    "retry_failed": true,
-    "max_retries": 2,
-    "continue_on_error": true
-  }}
-}}
+# 병렬 Task 호출 (단일 메시지에 여러 Task)
+tasks = []
 
-위 논문들을 처리해주세요:
-1. 각 논문에 대해 중복 체크
-2. survey-processor 또는 paper-processor 호출 (재시도 포함)
-3. 성공한 논문만 registry.json에 일괄 추가
-4. 상세 리포트 출력 (성공/실패/스킵 목록)
+for paper in regular_papers:
+    tasks.append(Task(
+        subagent_type="vehicle-contamination-or:paper-processor",
+        description=f"Process {paper['slug'][:20]}",
+        prompt=f"""
+논문 정보:
+{json.dumps(paper, indent=2, ensure_ascii=False)}
+
+논문 파일: {paper["file_path"]}
+
+저장 위치:
+/Users/newyork/public_agents/plugins/vehicle-contamination-or/private/paper/{paper["slug"]}/summary.md
+
+위 위치에 summary.md를 생성하세요.
+완료 후 결과 JSON 반환: {{"success": true, "slug": "{paper['slug']}"}}
 """
+    ))
+
+for paper in survey_papers:
+    tasks.append(Task(
+        subagent_type="vehicle-contamination-or:survey-processor",
+        description=f"Process survey {paper['slug'][:20]}",
+        prompt=f"""
+논문 정보:
+{json.dumps(paper, indent=2, ensure_ascii=False)}
+
+논문 파일: {paper["file_path"]}
+
+저장 위치:
+/Users/newyork/public_agents/plugins/vehicle-contamination-or/private/paper/{paper["slug"]}/survey_summary.md
+
+위 위치에 survey_summary.md를 생성하세요.
+완료 후 결과 JSON 반환: {{"success": true, "slug": "{paper['slug']}"}}
+"""
+    ))
+
+# 모든 Task 결과 수집
+results = await gather(tasks)
+```
+
+### Step 7: Registry 업데이트 (메인에서 직접)
+
+```python
+# 성공한 논문만 registry에 추가
+today = datetime.now().strftime("%Y-%m-%d")
+
+for paper in papers_to_process:
+    # Task 결과에서 성공 여부 확인
+    if paper_succeeded(paper):
+        new_entry = {
+            "id": paper["id"],
+            "slug": paper["slug"],
+            "title": paper["title"],
+            "year": paper["year"],
+            "url": paper["url"],
+            "citations": paper["citations"],
+            "status": "processed",
+            "added": today,
+            "tags": [],
+            "has_pdf": True,
+            "has_code": False,
+            "is_survey": paper["is_survey"]
+        }
+        registry["papers"].append(new_entry)
+
+# Registry 저장
+registry["last_updated"] = today
+Write(
+    "plugins/vehicle-contamination-or/private/registry.json",
+    json.dumps(registry, indent=2, ensure_ascii=False)
 )
 ```
 
-### Step 7: 최종 보고
+### Step 8: 최종 보고
 
 ```markdown
 ## ✅ Paper Research 완료
@@ -204,6 +265,14 @@ Task(
 # 카테고리 지정
 /paper-research ordinal regression --categories cs.CV --limit 10
 ```
+
+---
+
+## 병렬 처리 참고
+
+- **최대 병렬 수**: 10개 (Claude Code 제한)
+- **10개 초과 시**: 자동 큐잉
+- **에러 핸들링**: 개별 Task 실패해도 다른 Task 계속 진행
 
 ---
 
