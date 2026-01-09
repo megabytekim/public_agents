@@ -36,58 +36,106 @@
 ### 연구 목적
 > 부위별 4단계 오염도 분류에 적합한 **Ordinal Regression 기법** 탐색
 
+---
+
+## Commands (Skills)
+
+### /paper-research [query] --limit [N]
+**통합 논문 리서치 워크플로우**
+
+검색 → 다운로드 → Citation 조회 → 처리 → Registry 업데이트까지 한 번에 수행합니다.
+
+```bash
+/paper-research ordinal regression --limit 5
+/paper-research ti:"survey" ordinal regression --limit 3
+```
+
+### /arxiv-search [query]
+**arXiv 논문 검색**
+
+```bash
+/arxiv-search ordinal regression
+/arxiv-search ti:"survey" ordinal
+```
+
+### /arxiv-download [paper_id]
+**논문 다운로드 + Citation + Slug 생성**
+
+```bash
+/arxiv-download 2503.00952
+/arxiv-download 2503.00952 1901.07884  # 여러 논문
+```
+
+### /paper-process [paper_id] --slug [slug]
+**단일 논문 처리**
+
+```bash
+/paper-process 2503.00952 --slug survey-ordinal-regression-2025-c0
+```
+
+---
+
 ## Agents
 
-### Agent Architecture
+### Architecture
 
 ```
-paper-researcher (Orchestrator, sonnet)
-       │
-       ├── paper-finder (sonnet) ──→ 검색만, JSON 반환
-       │
-       ├── paper-processor (sonnet) ──→ 일반 논문 PDF+summary
-       │        ↑ is_survey=false
-       │
-       └── survey-processor (sonnet) ──→ Survey 논문 목록 추출/분류
-                ↑ is_survey=true
+┌─────────────────────────────────────────────────────────────┐
+│  /paper-research (스킬, 메인 컨텍스트)                        │
+│  - arXiv 검색 (MCP)                                         │
+│  - 논문 다운로드 (MCP)                                       │
+│  - Citation 조회 (Semantic Scholar)                         │
+│  - Slug 생성                                                │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ 배치 데이터 전달
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│  paper-researcher (오케스트레이터)                           │
+│  - 배치 처리 (여러 논문 순차 처리)                           │
+│  - 재시도 로직 (max_retries: 2)                             │
+│  - 에러 핸들링 (continue_on_error)                          │
+│  - registry.json 일괄 업데이트                              │
+│  - 상세 리포팅                                              │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ 개별 논문 처리
+                        ▼
+          ┌─────────────┴─────────────┐
+          │                           │
+          ▼                           ▼
+┌─────────────────┐         ┌─────────────────┐
+│ survey-processor │         │ paper-processor  │
+│ (is_survey=true) │         │ (is_survey=false)│
+│ - 목록 추출      │         │ - summary 생성   │
+│ - 분류 체계      │         │                  │
+│ - 벤치마크 정리  │         │                  │
+└─────────────────┘         └─────────────────┘
 
-ml-agent (standalone, sonnet) ──→ 벤치마크 + 코드 생성
+ml-agent (standalone) ──→ 벤치마크 + 코드 생성
 ```
 
 ### 1. paper-researcher (Orchestrator)
-**논문 리서치 오케스트레이터**
+**배치 논문 처리 오케스트레이터**
 
-sub-agent를 조율하여 대량 논문 검색/처리를 수행합니다.
+스킬에서 전달받은 논문 배치를 처리하고 sub-agent를 조율합니다.
 
 #### 주요 기능
-- registry.json 관리 (중복 방지)
-- paper-finder 호출 → 검색 결과 수집
-- paper-processor 병렬 호출 → PDF/summary 처리
-- 최종 결과 집계 및 보고
+- 배치 처리: 여러 논문 순차 처리
+- 재시도 로직: 실패 시 최대 2회 재시도
+- 에러 핸들링: 개별 실패해도 계속 진행
+- registry.json 일괄 업데이트
+- 상세 리포팅 (성공/실패/스킵 목록)
 
-#### Sub-agents
-
-| Agent | 모델 | 역할 |
-|-------|------|------|
-| paper-finder | sonnet | 검색 전담, JSON 목록 반환 |
-| paper-processor | sonnet | 일반 논문 PDF+summary 처리 (is_survey=false) |
-| survey-processor | sonnet | Survey 논문 목록 추출/분류 (is_survey=true) |
-
-#### 장점
-- **Context 분산**: 30개 논문도 각 processor가 독립 context 사용
-- **실패 격리**: 개별 processor 실패해도 나머지 계속 진행
-- **병렬 처리**: 여러 processor 동시 호출 가능
-- **Survey 분리**: Survey 논문은 survey-processor가 전담 (목록 추출 특화)
-
-#### 검색 대상 도메인
-- **High**: Vehicle damage, Surface defect, Quality grading
-- **Medium**: Diabetic retinopathy, Age estimation
-- **Low**: Aesthetic quality, Food quality
-
-#### 이미 알고 있는 방법론
-- **SORD** (Soft Ordinal Regression)
-- **CORN** (Conditional Ordinal Regression)
-- **ORD2SEQ** (Ordinal to Sequence)
+#### 입력 형식
+```json
+{
+  "papers": [...],
+  "options": {
+    "retry_failed": true,
+    "max_retries": 2,
+    "continue_on_error": true
+  }
+}
+```
 
 ### 2. survey-processor
 **Survey 논문 전담 처리 에이전트**
@@ -103,11 +151,25 @@ Survey 논문에서 논문 목록, 분류 체계, 벤치마크 데이터셋을 �
 #### 출력물
 - `survey_summary.md`: 논문 목록, 분류 체계, 적용성 평가 포함
 
-#### 라우팅 조건
-- `is_survey: true`인 논문만 처리
-- 일반 논문은 paper-processor가 담당
+### 3. paper-processor
+**일반 논문 처리 에이전트**
 
-### 3. ml-agent
+개별 논문을 읽고 summary를 생성합니다.
+
+#### 주요 기능
+- 논문 핵심 내용 요약
+- 방법론 정리
+- 차량 오염 탐지 적용성 평가
+
+#### 출력물
+- `summary.md`: 논문 요약
+
+### 4. paper-finder
+**논문 검색 전담 에이전트**
+
+검색 쿼리로 논문을 찾고 JSON 목록을 반환합니다.
+
+### 5. ml-agent
 **벤치마크 수집 + 코드 생성 에이전트**
 
 공개 벤치마크 데이터셋을 찾고 PyTorch boilerplate 코드를 생성합니다.
@@ -118,27 +180,61 @@ Survey 논문에서 논문 목록, 분류 체계, 벤치마크 데이터셋을 �
 - 찾은 논문 내용 바탕으로 구현
 
 #### 검색 소스
-- Kaggle
-- Papers with Code
-- GitHub
-- Hugging Face Datasets
+- Kaggle, Papers with Code, GitHub, Hugging Face Datasets
+
+---
+
+## Workflow
+
+### 전체 리서치 워크플로우
+```bash
+# 방법 1: 통합 명령어 (권장)
+/paper-research ordinal regression --limit 5
+
+# 방법 2: 단계별 실행
+/arxiv-search ordinal regression              # 1. 검색
+/arxiv-download 2503.00952                    # 2. 다운로드
+/paper-process 2503.00952 --slug xxx-c0       # 3. 처리
+```
+
+### MCP 도구 제한 사항
+> **주의**: Task 에이전트는 MCP 도구에 접근할 수 없습니다 (Claude Code 제한).
+> 따라서 arXiv 검색/다운로드는 스킬(메인 컨텍스트)에서 수행하고,
+> 에이전트는 처리/분석만 담당합니다.
+
+### 검색 대상 도메인
+- **High**: Vehicle damage, Surface defect, Quality grading
+- **Medium**: Diabetic retinopathy, Age estimation
+- **Low**: Aesthetic quality, Food quality
+
+### 이미 알고 있는 방법론
+- **SORD** (Soft Ordinal Regression)
+- **CORN** (Conditional Ordinal Regression)
+- **ORD2SEQ** (Ordinal to Sequence)
+- **CORAL** (Consistent Rank Logits)
+
+---
 
 ## Directory Structure
 
 ```
 plugins/vehicle-contamination-or/
 ├── agents/
-│   ├── paper-researcher.md   # 오케스트레이터 (sub-agent 조율)
+│   ├── paper-researcher.md   # 배치 오케스트레이터
 │   ├── paper-finder.md       # 검색 전담 sub-agent
 │   ├── paper-processor.md    # 일반 논문 처리 sub-agent
 │   ├── survey-processor.md   # Survey 논문 처리 sub-agent
 │   └── ml-agent.md           # 벤치마크 + 코드 생성
+├── commands/
+│   ├── paper-research.md     # 통합 워크플로우 스킬
+│   ├── arxiv-search.md       # arXiv 검색 스킬
+│   ├── arxiv-download.md     # 다운로드 + citation 스킬
+│   └── paper-process.md      # 단일 논문 처리 스킬
 ├── private/                  # gitignore (내부 정보)
 │   ├── registry.json         # 논문 인덱스 (중복 방지)
 │   ├── paper/                # 논문별 폴더
 │   │   └── {slug}-c{N}/      # 폴더명에 citation 포함
-│   │       ├── paper.pdf     # 원본 PDF
-│   │       ├── summary.md    # brief_summary 형식
+│   │       ├── summary.md    # 일반 논문 요약
 │   │       └── survey_summary.md  # survey 논문용
 │   ├── examples/             # Few-shot 예시
 │   │   ├── brief_summary/    # 방법론 요약 예시
@@ -149,47 +245,7 @@ plugins/vehicle-contamination-or/
 └── .gitignore
 ```
 
-## Usage
-
-### 논문 리서치
-```bash
-# paper-researcher 에이전트 실행
-agent paper-researcher
-
-# 사용 예시
-"ordinal regression 논문 30개 찾아줘"
-"차량 손상 탐지 관련 최신 연구 검색해줘"
-"medical image grading 사례 찾아줘"
-```
-
-### 벤치마크 + 코드 생성
-```bash
-# ml-agent 에이전트 실행
-agent ml-agent
-
-# 사용 예시
-"ordinal regression 벤치마크 데이터셋 찾아줘"
-"CORN 방식으로 PyTorch 코드 생성해줘"
-"찾은 데이터셋으로 학습 코드 만들어줘"
-```
-
-## Workflow
-
-### 연구 워크플로우
-```
-1. paper-researcher로 대량 논문 검색 (30개+)
-   ├── paper-finder: 검색
-   ├── paper-processor: 일반 논문 PDF+summary (병렬)
-   └── survey-processor: Survey 논문 목록 추출 (is_survey=true)
-2. private/registry.json에 자동 등록
-3. ml-agent로 벤치마크 데이터셋 수집
-4. boilerplate 코드 생성
-5. 별도 repo에서 실제 구현
-```
-
-### 성능 검증
-- 공개 벤치마크 데이터셋으로 성능 검증
-- 실제 구현은 별도 repo에서 진행
+---
 
 ## Private Folder
 
@@ -203,4 +259,3 @@ agent ml-agent
 - **Language**: Python
 - **Framework**: PyTorch
 - **Task**: Object Detection + Ordinal Regression
-
