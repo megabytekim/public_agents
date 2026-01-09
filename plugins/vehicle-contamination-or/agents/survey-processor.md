@@ -55,7 +55,7 @@ Survey 논문에서 **방법론 목록**, **벤치마크 데이터셋**, **분�
 
 ## Step 1: Use Provided Slug (slug 자체 생성 금지)
 
-> ⚠️ **slug는 paper-researcher가 이미 생성해서 전달합니다.**
+> ⚠️ **slug는 메인 컨텍스트(/paper-research, /paper-process)가 이미 생성해서 전달합니다.**
 > Citation 정보가 포함된 slug를 **그대로 사용**하세요.
 
 ```python
@@ -263,7 +263,7 @@ Ordinal Regression Methods
 ## 주의사항
 
 - **검색하지 마세요** (paper-finder가 담당)
-- **registry 수정하지 마세요** (paper-researcher가 담당)
+- **registry 수정하지 마세요** (메인 컨텍스트가 담당)
 - **일반 논문 처리하지 마세요** (paper-processor가 담당)
 - `is_survey: true`인 논문만 처리
 - 논문 목록 추출이 핵심 - **테이블 형식 필수**

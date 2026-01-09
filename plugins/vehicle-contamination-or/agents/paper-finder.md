@@ -161,5 +161,5 @@ WebFetch: https://api.semanticscholar.org/graph/v1/paper/search?query={title}&li
 
 - **PDF 다운로드 하지 마세요** (paper-processor가 담당)
 - **summary 작성하지 마세요** (paper-processor가 담당)
-- **registry 수정하지 마세요** (paper-researcher가 담당)
+- **registry 수정하지 마세요** (메인 컨텍스트가 담당)
 - 검색 결과 JSON만 반환하면 완료

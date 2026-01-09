@@ -46,7 +46,7 @@ summary 작성 시 "세차/차량 오염 탐지 적용성" 관점에서 평가.
 
 ## Step 1: Use Provided Slug (slug 자체 생성 금지) ⭐
 
-> ⚠️ **slug는 paper-researcher가 이미 생성해서 전달합니다.**
+> ⚠️ **slug는 메인 컨텍스트(/paper-research, /paper-process)가 이미 생성해서 전달합니다.**
 > Citation 정보가 포함된 slug를 **그대로 사용**하세요.
 
 ```python
@@ -180,7 +180,7 @@ curl -L -o {slug}/paper.pdf {pdf_url}
 ## 주의사항
 
 - **검색하지 마세요** (paper-finder가 담당)
-- **registry 수정하지 마세요** (paper-researcher가 담당)
+- **registry 수정하지 마세요** (메인 컨텍스트가 담당)
 - **Survey 논문 처리하지 마세요** (survey-processor가 담당)
 - `is_survey: false`인 일반 논문만 처리
 - 입력받은 1개 논문만 처리

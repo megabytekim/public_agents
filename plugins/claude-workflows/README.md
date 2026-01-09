@@ -34,6 +34,32 @@ Claude Code 개념을 설명해주는 명령어입니다.
 /claude-workflows:explain mcp --local      # local/notes/mcp-guide.md 저장 (개인용)
 ```
 
+### /plugin-check [plugin-name]
+플러그인 수정 후 필요한 검증을 자동으로 수행합니다.
+
+#### 검증 항목
+| # | 항목 | 설명 |
+|---|------|------|
+| 1 | 파일 존재 | marketplace.json에 등록된 파일이 실제 존재하는지 |
+| 2 | 미등록 파일 | 실제 존재하지만 marketplace.json에 없는 파일 |
+| 3 | Git 상태 | 커밋 안 된 변경사항 |
+| 4 | 재시작 필요 | agents/commands 변경 시 재시작 필요 여부 |
+
+#### 사용 예시
+```
+/plugin-check vehicle-contamination-or  # 특정 플러그인 체크
+/plugin-check claude-workflows          # 특정 플러그인 체크
+/plugin-check                           # 전체 플러그인 체크
+```
+
+#### 출력 예시
+```
+✅ 파일 검증: agents 5/5, commands 4/4
+⚠️ 미등록 파일: agents/new-agent.md
+📝 Git 변경: 3 files modified
+🔄 재시작 필요: marketplace.json 변경됨
+```
+
 ## Agents
 
 ### 1. claude-code-guide-agent
@@ -92,7 +118,9 @@ plugins/claude-workflows/
 │   ├── code-analyzer-agent.md        # 외부 코드/repo 분석
 │   └── plugin-refactor-agent.md      # 플러그인 구조 리팩토링
 ├── commands/
-│   └── explain.md              # 개념 설명 명령어
+│   ├── explain.md              # 개념 설명 명령어
+│   ├── explore.md              # 최신 트렌드 수집
+│   └── plugin-check.md         # 플러그인 검증 명령어
 ├── skills/                      # (예정) 재사용 가능한 지식
 ├── docs/                        # ✅ Git 커밋 (레퍼런스, 예시)
 │   └── concepts/               # /explain --save 저장 위치

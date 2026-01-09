@@ -62,7 +62,8 @@
       "strict": false,
       "commands": [
         "./commands/explain.md",
-        "./commands/explore.md"
+        "./commands/explore.md",
+        "./commands/plugin-check.md"
       ],
       "agents": [
         "./agents/claude-code-guide-agent.md",
@@ -130,7 +131,6 @@
         "./commands/paper-process.md"
       ],
       "agents": [
-        "./agents/paper-researcher.md",
         "./agents/paper-finder.md",
         "./agents/paper-processor.md",
         "./agents/survey-processor.md",
