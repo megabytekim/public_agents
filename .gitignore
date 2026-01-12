@@ -37,3 +37,6 @@ plugins/*/local/*
 .ruff_cache/
 .pytest_cache/
 .mypy_cache/
+
+# Claude Code (local settings are personal)
+.claude/settings.local.json

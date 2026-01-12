@@ -141,8 +141,8 @@
     {
       "name": "stock-analyzer-advanced",
       "source": "./plugins/stock-analyzer-advanced",
-      "description": "Advanced stock analysis with Market Intelligence (MI) and Portfolio Intelligence (PI) agents. Real-time market data, company analysis, and investment strategy recommendations.",
-      "version": "1.0.0",
+      "description": "Korean stock comprehensive analysis with Technical Intelligence (TI), Market Intelligence (MI), and Sentiment Intelligence (SI) agents.",
+      "version": "1.1.0",
       "author": {
         "name": "megabytekim",
         "url": "https://github.com/megabytekim"
@@ -152,20 +152,22 @@
       "license": "MIT",
       "keywords": [
         "stock-analysis",
+        "technical-analysis",
         "market-intelligence",
-        "portfolio-management",
-        "investment",
-        "financial-analysis",
-        "real-time-data"
+        "sentiment-analysis",
+        "korean-stock",
+        "pykrx"
       ],
       "category": "finance",
       "strict": false,
       "commands": [
-        "./commands/기업분석.md"
+        "./commands/stock-analyze.md"
       ],
       "agents": [
         "./agents/market-intelligence.md",
-        "./agents/portfolio-intelligence.md"
+        "./agents/sentiment-intelligence.md",
+        "./agents/technical-intelligence.md",
+        "./agents/financial-ml-analyst.md"
       ],
       "skills": []
     }

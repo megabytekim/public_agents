@@ -111,17 +111,34 @@ claude mcp add mcp-obsidian -- uvx mcp-obsidian
 
 ## 3. 프로젝트 권한 설정
 
-`.claude/settings.local.json`이 이미 포함되어 있습니다. 필요시 경로를 수정하세요:
+권한 설정은 두 가지 파일로 관리됩니다:
 
+| 파일 | 용도 | Git |
+|------|------|-----|
+| `.claude/settings.json` | 공유 권한 (팀/다른 PC) | 커밋됨 |
+| `.claude/settings.local.json` | 개인 권한 (Obsidian 등) | 무시됨 |
+
+**공유 권한** (이미 설정됨, 수정 불필요):
 ```json
 {
   "permissions": {
     "allow": [
       "WebSearch",
       "WebFetch(domain:arxiv.org)",
-      "WebFetch(domain:api.semanticscholar.org)",
-      "Bash(mkdir:*)",
-      "Write(/YOUR/PATH/plugins/vehicle-contamination-or/private/paper/**)"
+      "Write(/plugins/vehicle-contamination-or/private/paper/**)"
+    ]
+  }
+}
+```
+
+> `/plugins/...`는 **프로젝트 상대 경로**로, 어떤 PC에서든 동일하게 작동합니다.
+
+**개인 권한** (필요시 직접 추가):
+```json
+{
+  "permissions": {
+    "allow": [
+      "mcp__mcp-obsidian__obsidian_simple_search"
     ]
   }
 }
@@ -136,7 +153,8 @@ public_agents/
 ├── CLAUDE.md                    # 프로젝트 규칙
 ├── setup.md                     # 이 파일
 ├── .claude/
-│   └── settings.local.json      # 권한 설정
+│   ├── settings.json            # 공유 권한 (git 커밋)
+│   └── settings.local.json      # 개인 권한 (gitignored)
 └── plugins/
     ├── claude-workflows/        # Claude Code 관련 에이전트
     │   └── agents/
@@ -204,7 +222,8 @@ claude mcp restart <server-name>
 
 ### 권한 오류
 
-`.claude/settings.local.json`의 경로가 현재 시스템과 맞는지 확인하세요.
+공유 권한은 `.claude/settings.json`에 프로젝트 상대 경로로 설정되어 있어 별도 수정이 필요 없습니다.
+개인 권한이 필요하면 `.claude/settings.local.json`에 추가하세요.
 
 ### uvx/npx 없음
 
