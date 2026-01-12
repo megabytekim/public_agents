@@ -38,6 +38,9 @@ This command performs comprehensive stock analysis by **orchestrating MI/SI/TI w
 ### Data Accuracy Protocol (MANDATORY)
 
 1. **STEP 0 - Date First**: Always verify current date before any data collection
+   - ⚠️ **Do NOT include explicit year numbers** in date search queries (e.g., "2025", "2026")
+   - Use: `"what is today's date"` or `"current date"` (without year)
+   - Reason: Hardcoded years become outdated and cause incorrect searches
 2. **Source Attribution**: ALL data must include source + timestamp
 3. **No Speculation**: Never guess prices or make up numbers
 4. **Cross-Validation**: Verify data across multiple sources when possible
@@ -64,19 +67,37 @@ This preserves historical context for trend analysis.
 
 ---
 
+## Plugin Path (IMPORTANT)
+
+```python
+# All paths MUST be relative to project root, prefixed with plugin directory
+PLUGIN_DIR = "plugins/stock-analyzer-advanced"
+
+# Examples:
+# ✅ Correct: f"{PLUGIN_DIR}/watchlist/stocks/{ticker}/"
+# ❌ Wrong:   f"watchlist/stocks/{ticker}/"  (creates at project root!)
+```
+
+---
+
 ## Execution Flow
 
 ### Phase 1: Setup & Date Verification
 
 ```python
 # 1. Verify current date (CRITICAL)
+# ⚠️ IMPORTANT: Do NOT include year numbers in date search queries!
+# Bad:  "today's date 2025" (year may be outdated)
+# Good: "what is today's date" or "current date"
 WebSearch("what is today's date")
 
 # 2. Determine market type
 market = "KRX" if ticker.isdigit() else "US"
 
 # 3. Create/check work directory
-work_dir = f"watchlist/stocks/{ticker}/"
+# ⚠️ IMPORTANT: Use plugin-relative path, NOT project root!
+PLUGIN_DIR = "plugins/stock-analyzer-advanced"
+work_dir = f"{PLUGIN_DIR}/watchlist/stocks/{ticker}/"
 ```
 
 ### Phase 2: Parallel Worker Dispatch
@@ -157,8 +178,10 @@ After workers complete, main context performs strategic analysis using sector kn
 ```python
 # Generate report using template
 # APPEND to existing file (never overwrite)
+# ⚠️ Use plugin-relative path!
+PLUGIN_DIR = "plugins/stock-analyzer-advanced"
 obsidian_append_content(
-    filepath=f"watchlist/stocks/{ticker}/analysis.md",
+    filepath=f"{PLUGIN_DIR}/watchlist/stocks/{ticker}/analysis.md",
     content=f"""
 ---
 

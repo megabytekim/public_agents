@@ -1,6 +1,6 @@
 # Stock Analyzer Advanced - Setup Verification
 
-*Last Updated: 2025-12-30*
+*Last Updated: 2026-01-12*
 
 ## ✅ 검증 완료 항목
 
@@ -247,6 +247,74 @@ agent portfolio-intelligence
 4. ✅ 가격에 검증 마크가 있는가?
 5. ✅ 날짜가 2025년인가?
 6. ✅ 출처가 명시되어 있는가?
+
+## 🔄 플러그인 업데이트 (캐시 관리)
+
+### 문제 상황
+Command나 Agent 파일을 수정했는데 변경사항이 반영되지 않는 경우
+
+### 원인
+Claude Code는 플러그인을 **캐시**에서 로드합니다:
+```
+~/.claude/plugins/cache/megabytekim-agents/stock-analyzer-advanced/
+```
+
+로컬(`/Users/newyork/public_agents/plugins/...`)에서 수정해도 캐시된 버전이 사용됩니다.
+
+### 경로 구조
+| 위치 | 경로 | 용도 |
+|------|------|------|
+| 캐시 (사용됨) | `~/.claude/plugins/cache/megabytekim-agents/` | Claude Code가 실제 로드하는 곳 |
+| Marketplace | `~/.claude/plugins/marketplaces/megabytekim-agents/` | Git에서 pull한 최신 소스 |
+| 로컬 개발 | `/Users/newyork/public_agents/plugins/` | 개발 중인 소스 |
+
+### 해결 방법
+
+#### 1. 캐시 삭제 후 재설치 (권장)
+```bash
+# 캐시 삭제
+rm -rf ~/.claude/plugins/cache/megabytekim-agents/stock-analyzer-advanced/
+
+# Claude Code 재시작 → marketplace에서 자동 재설치
+```
+
+#### 2. 전체 플러그인 캐시 삭제
+```bash
+# 모든 플러그인 캐시 삭제
+rm -rf ~/.claude/plugins/cache/megabytekim-agents/
+
+# Claude Code 재시작
+```
+
+### 업데이트 체크리스트
+```bash
+# 1. 로컬에서 수정
+vim /Users/newyork/public_agents/plugins/stock-analyzer-advanced/commands/stock-analyze.md
+
+# 2. Git push (marketplace 업데이트)
+git add . && git commit -m "Update stock-analyze command" && git push
+
+# 3. 캐시 삭제
+rm -rf ~/.claude/plugins/cache/megabytekim-agents/stock-analyzer-advanced/
+
+# 4. Claude Code 재시작 (/exit 후 claude)
+
+# 5. 확인: 새 command가 인식되는지 체크
+```
+
+### 디버깅 팁
+```bash
+# 캐시된 버전 확인
+ls ~/.claude/plugins/cache/megabytekim-agents/stock-analyzer-advanced/commands/
+
+# Marketplace 버전 확인
+ls ~/.claude/plugins/marketplaces/megabytekim-agents/plugins/stock-analyzer-advanced/commands/
+
+# 두 버전 비교
+diff ~/.claude/plugins/cache/.../commands/ ~/.claude/plugins/marketplaces/.../commands/
+```
+
+---
 
 ## 🔧 추가 개선 권장사항
 
