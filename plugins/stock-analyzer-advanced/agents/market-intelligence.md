@@ -157,9 +157,11 @@ browser_snapshot()
 □ 오늘 날짜 확인 (2026-01-07)
 □ yfinance MCP로 가격 확인 (최우선)
 □ MCP 없으면 WebFetch Yahoo Finance
+□ 시가총액 확인 (Yahoo Finance)
 □ WebSearch로 최신 뉴스 (날짜 포함)
 □ 애널리스트 목표가 수집
 □ 모든 데이터에 날짜 + 출처 명시
+⛔ 52주 최고/최저, 거래량은 수집하지 않음
 ```
 
 ## 한국 주식 (삼성전자 예시)
@@ -168,10 +170,43 @@ browser_snapshot()
 □ 오늘 날짜 확인 (2026-01-07)
 □ Bash + utils로 get_naver_stock_info() 실행 (최우선)
 □ 현재가, PER, PBR, 외국인비율 확인
+□ 시가총액 확인 (Naver Finance 1순위)
 □ get_naver_discussion()으로 종목토론 센티먼트 확인
 □ WebSearch로 최신 뉴스 (날짜 포함)
 □ 필요시 Playwright로 FnGuide 재무제표 (fallback)
 □ 모든 데이터에 날짜 + 출처 명시
+⛔ 52주 최고/최저, 거래량은 수집하지 않음
+```
+
+---
+
+# ⛔ 수집 금지 항목 (DO NOT COLLECT)
+
+**아래 데이터는 소스마다 불일치가 심해 MI에서 수집하지 않습니다:**
+
+```markdown
+❌ 52주 최고가 (52W High) - 소스별 계산 기준 상이
+❌ 52주 최저가 (52W Low) - 소스별 계산 기준 상이
+❌ 거래량 (Volume) - 실시간 변동으로 부정확
+```
+
+**위 항목이 필요하면 Main Context에서 직접 TI(기술적 분석)에 요청하세요.**
+
+---
+
+# 📌 시가총액 수집 규칙 (MANDATORY)
+
+**시가총액은 반드시 Naver Finance를 1순위로 참조하세요:**
+
+```python
+# 한국 주식 시가총액
+# 1순위: Naver Finance (가장 정확)
+# 2순위: FnGuide (백업)
+
+# ⚠️ 주의: FnGuide와 Naver가 다를 수 있음
+# - Naver: 보통주 기준 시총
+# - FnGuide: 우선주 포함 or 다른 계산 방식
+# → 항상 Naver Finance 값을 우선 사용
 ```
 
 ---
@@ -241,12 +276,11 @@ class DataVerification:
 |------|-----|------|
 | 현재가 | $141.32 | Yahoo Finance |
 | 전일대비 | -0.8% | |
-| 52주 최고 | $153.00 | |
-| 52주 최저 | $108.00 | |
-| 거래량 | 45.2M | |
+| 시가총액 | $3.5T | Naver Finance (한국) / Yahoo (미국) |
 
 📅 확인 시각: 2026-01-07 15:30 EST
-✅ 52주 범위 내 확인 ($108-$153)
+
+⚠️ 52주 최고/최저, 거래량은 MI에서 수집하지 않음 (TI 담당)
 ```
 
 ## 뉴스 데이터

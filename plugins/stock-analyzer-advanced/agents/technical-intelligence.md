@@ -55,7 +55,7 @@ ticker = "000660"  # 종목코드 변경
 name = get_ticker_name(ticker)
 print(f"종목명: {name}")
 
-# OHLCV 조회
+# OHLCV 조회 (기술지표용 60일)
 df = get_ohlcv(ticker, days=60)
 if df is None:
     print("데이터 조회 실패")
@@ -66,6 +66,14 @@ high = df['고가']
 low = df['저가']
 
 print(f"현재가: {close.iloc[-1]:,}원")
+
+# 52주 고/저 (pykrx 기반 - 정확한 데이터)
+df_year = get_ohlcv(ticker, days=252)
+if df_year is not None and not df_year.empty:
+    high_52w = df_year['고가'].max()
+    low_52w = df_year['저가'].min()
+    print(f"52주 최고: {high_52w:,}원")
+    print(f"52주 최저: {low_52w:,}원")
 
 # RSI
 rsi_val = rsi(close).iloc[-1]
@@ -135,6 +143,8 @@ EOF
 |------|-----|
 | 종목명 | XXX |
 | 현재가 | X,XXX원 |
+| 52주 최고 | X,XXX원 |
+| 52주 최저 | X,XXX원 |
 
 ## 기술지표
 | 지표 | 값 | 신호 |
