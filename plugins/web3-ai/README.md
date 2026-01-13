@@ -96,6 +96,46 @@ plugins/web3-ai/
 3. AI 에이전트 개발 질문 시 `ai-agent` 자동 호출
 4. 또는 명시적으로 에이전트 지정 가능
 
+## 플러그인 변경 시 체크리스트
+
+플러그인에 agents, commands, skills를 추가/삭제했다면 **반드시** 아래 파일도 업데이트하세요:
+
+```
+/.claude-plugin/marketplace.json
+```
+
+### marketplace.json 역할
+- 모든 플러그인의 메타데이터와 구성요소를 중앙에서 관리
+- Claude Code가 플러그인을 인식하고 로드하는 데 사용
+- agents, commands, skills 경로가 여기에 등록되어야 실제로 동작
+
+### 이 플러그인의 현재 등록 상태
+```json
+{
+  "name": "web3-ai",
+  "commands": [],
+  "agents": [
+    "./agents/ai-agent.md",
+    "./agents/humanities-web3-agent.md",
+    "./agents/x402-ethereum-agent.md"
+  ],
+  "skills": []
+}
+```
+
+### 변경 예시
+새 에이전트 `my-new-agent.md` 추가 시:
+1. `agents/my-new-agent.md` 파일 생성
+2. `/.claude-plugin/marketplace.json`의 `web3-ai.agents` 배열에 추가:
+   ```json
+   "agents": [
+     "./agents/ai-agent.md",
+     "./agents/humanities-web3-agent.md",
+     "./agents/x402-ethereum-agent.md",
+     "./agents/my-new-agent.md"
+   ]
+   ```
+
 ## 키워드
 
 `web3` `ethereum` `x402` `blockchain` `smart-contracts` `defi` `nft` `ai` `agent` `llm` `langchain` `rag` `multi-agent` `a2a` `humanities` `philosophy` `history` `literature` `ethics` `digital-humanities`
