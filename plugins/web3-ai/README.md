@@ -75,18 +75,45 @@ LLM 기반 에이전트, 멀티 에이전트 시스템, RAG 구현에 특화된 
 
 ---
 
+### 4. agentic-commerce-analyst
+**에이전트 상거래 및 결제 프로토콜 분석가**
+
+Google AP2/A2A 프로토콜, 전통 결제 시스템, 리테일/이커머스 비즈니스 전략 분석에 특화된 에이전트입니다.
+
+#### 주요 영역
+- **결제 프로토콜**: Google AP2 (Mandates), A2A, A2A x402 Extension
+- **전통 결제**: Visa, Mastercard, PayPal, Stripe, BNPL
+- **비즈니스 분석**: 에이전틱 상거래 시장 트렌드, 경쟁 분석
+- **규제/리스크**: 사기 방지, 소비자 보호, 컴플라이언스
+
+#### 웹검색 규칙 (중요)
+- 검색 전 현재 날짜 확인
+- 검색 쿼리에 현재 연도 명시 (예: "AP2 protocol 2026")
+- 오래된 정보 필터링
+
+#### 사용 예시
+```
+"Google AP2 프로토콜 작동 방식 설명해줘"
+"에이전트 상거래 시장 전망 분석해줘"
+"A2A vs MCP vs AP2 비교해줘"
+"전통 결제 시스템과 에이전트 결제의 차이점"
+```
+
+---
+
 ## 디렉토리 구조
 
 ```
 plugins/web3-ai/
 ├── agents/
-│   ├── humanities-web3-agent.md  # 문사철 인문학 × Web3/AI 에이전트
-│   ├── x402-ethereum-agent.md    # Web3/Ethereum 개발 에이전트
-│   └── ai-agent.md               # AI 에이전트 개발 에이전트
-├── commands/                      # (예정) 슬래시 명령어
-├── skills/                        # (예정) 재사용 가능한 지식
-├── docs/                          # 레퍼런스 문서
-└── local/                         # 개인 노트 (Gitignored)
+│   ├── ai-agent.md                    # AI 에이전트 개발 에이전트
+│   ├── agentic-commerce-analyst.md    # 에이전트 상거래/결제 분석가
+│   ├── humanities-web3-agent.md       # 문사철 인문학 × Web3/AI 에이전트
+│   └── x402-ethereum-agent.md         # Web3/Ethereum 개발 에이전트
+├── commands/                           # (예정) 슬래시 명령어
+├── skills/                             # (예정) 재사용 가능한 지식
+├── docs/                               # 레퍼런스 문서
+└── local/                              # 개인 노트 (Gitignored)
 ```
 
 ## 사용 방법
@@ -113,9 +140,11 @@ plugins/web3-ai/
 ```json
 {
   "name": "web3-ai",
+  "version": "1.1.0",
   "commands": [],
   "agents": [
     "./agents/ai-agent.md",
+    "./agents/agentic-commerce-analyst.md",
     "./agents/humanities-web3-agent.md",
     "./agents/x402-ethereum-agent.md"
   ],
@@ -126,19 +155,11 @@ plugins/web3-ai/
 ### 변경 예시
 새 에이전트 `my-new-agent.md` 추가 시:
 1. `agents/my-new-agent.md` 파일 생성
-2. `/.claude-plugin/marketplace.json`의 `web3-ai.agents` 배열에 추가:
-   ```json
-   "agents": [
-     "./agents/ai-agent.md",
-     "./agents/humanities-web3-agent.md",
-     "./agents/x402-ethereum-agent.md",
-     "./agents/my-new-agent.md"
-   ]
-   ```
+2. `/.claude-plugin/marketplace.json`의 `web3-ai.agents` 배열에 추가
 
 ## 키워드
 
-`web3` `ethereum` `x402` `blockchain` `smart-contracts` `defi` `nft` `ai` `agent` `llm` `langchain` `rag` `multi-agent` `a2a` `humanities` `philosophy` `history` `literature` `ethics` `digital-humanities`
+`web3` `ethereum` `x402` `blockchain` `smart-contracts` `defi` `nft` `ai` `agent` `llm` `langchain` `rag` `multi-agent` `a2a` `humanities` `philosophy` `history` `literature` `ethics` `digital-humanities` `agentic-commerce` `ap2-protocol` `agent-payments`
 
 ## License
 

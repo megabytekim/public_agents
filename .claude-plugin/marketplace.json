@@ -74,8 +74,8 @@
     {
       "name": "web3-ai",
       "source": "./plugins/web3-ai",
-      "description": "Web3 and AI agent development specialists. Covers blockchain development, X402 protocol, Ethereum ecosystem, AI agent architectures, and humanities perspectives on emerging technologies.",
-      "version": "1.0.0",
+      "description": "Web3 and AI agent development specialists. Covers blockchain development, X402 protocol, Ethereum ecosystem, AI agent architectures, agentic commerce, and humanities perspectives on emerging technologies.",
+      "version": "1.1.0",
       "author": {
         "name": "megabytekim",
         "url": "https://github.com/megabytekim"
@@ -91,13 +91,17 @@
         "x402-protocol",
         "defi",
         "smart-contracts",
-        "digital-humanities"
+        "digital-humanities",
+        "agentic-commerce",
+        "ap2-protocol",
+        "agent-payments"
       ],
       "category": "development",
       "strict": false,
       "commands": [],
       "agents": [
         "./agents/ai-agent.md",
+        "./agents/agentic-commerce-analyst.md",
         "./agents/humanities-web3-agent.md",
         "./agents/x402-ethereum-agent.md"
       ],
