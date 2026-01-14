@@ -153,31 +153,39 @@ Step 4: Pushing to remote...
 
 ```bash
 # 0. Validate path is stock analysis (CRITICAL)
+# Using case statement for POSIX compatibility (works in bash/zsh/sh)
 for file in {{files//,/ }}; do
     # Must start with stock_checklist/
-    if [[ ! "$file" =~ ^stock_checklist/ ]]; then
-        echo "❌ REJECTED: $file"
-        echo "Only stock_checklist/ paths are allowed"
-        exit 1
-    fi
+    case "$file" in
+        stock_checklist/*)
+            ;;
+        *)
+            echo "❌ REJECTED: $file"
+            echo "Only stock_checklist/ paths are allowed"
+            exit 1
+            ;;
+    esac
 
     # Extract folder name (second component)
     folder=$(echo "$file" | cut -d'/' -f2)
 
     # Folder must contain underscore (종목명_종목코드 format)
-    if [[ ! "$folder" =~ _ ]]; then
-        echo "❌ REJECTED: Invalid folder format: $folder"
-        echo "Folder must be {종목명}_{종목코드} format"
-        exit 1
-    fi
-
-    echo "✅ Path validated: $file"
+    case "$folder" in
+        *_*)
+            echo "✅ Path validated: $file"
+            ;;
+        *)
+            echo "❌ REJECTED: Invalid folder format: $folder"
+            echo "Folder must be {종목명}_{종목코드} format"
+            exit 1
+            ;;
+    esac
 done
 
 # 1. Verify files exist
 for file in {{files//,/ }}; do
     if [ ! -f "$file" ]; then
-        echo "Error: File not found: $file"
+        echo "❌ Error: File not found: $file"
         exit 1
     fi
 done
@@ -187,7 +195,7 @@ git add {{files//,/ }}
 
 # 3. Check if there are changes to commit
 if git diff --cached --quiet; then
-    echo "No changes to commit for specified files"
+    echo "ℹ️ No changes to commit for specified files"
     exit 0
 fi
 
