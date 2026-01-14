@@ -165,7 +165,8 @@
       "category": "finance",
       "strict": false,
       "commands": [
-        "./commands/stock-analyze.md"
+        "./commands/stock-analyze.md",
+        "./commands/stock-git-add-push.md"
       ],
       "agents": [
         "./agents/market-intelligence.md",
