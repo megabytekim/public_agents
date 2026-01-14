@@ -10,6 +10,7 @@
       "WebFetch(domain:news.ycombinator.com)",
       "WebFetch(domain:www.builder.io)",
       "WebFetch(domain:comp.fnguide.com)",
+      "WebFetch(domain:www.hankyung.com)",
       "Bash(wc:*)",
       "Bash(curl:*)",
       "Bash(mkdir:*)",

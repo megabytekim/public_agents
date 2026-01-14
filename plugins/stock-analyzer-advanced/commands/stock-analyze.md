@@ -146,19 +146,140 @@ Task(
     description=f"SI: {ticker} sentiment"
 )
 
-# TI Worker (only for deep analysis)
+# TI Worker (only for deep analysis) - Uses local utils, NOT web search
 if depth == "deep":
     Task(
-        subagent_type="stock-analyzer-advanced:technical-intelligence",
+        subagent_type="general-purpose",
         prompt=f"""
-        Technical analysis for {ticker}:
-        1. RSI (14-day)
-        2. MACD + Signal line
-        3. Bollinger Bands
-        4. Support/Resistance levels
-        5. Buy/Sell signals interpretation
+        ## TI Worker: Technical Analysis for {ticker}
+
+        **CRITICAL**: You MUST use Bash to execute Python code with local utils.
+        Do NOT use WebSearch for technical indicators - use pykrx data directly.
+
+        ### Execute this Python code via Bash:
+
+        ```bash
+        cd /Users/newyork/public_agents/plugins/stock-analyzer-advanced && python3 << 'PYEOF'
+import sys
+sys.path.insert(0, '/Users/newyork/public_agents/plugins/stock-analyzer-advanced')
+
+from utils import (
+    get_ohlcv, get_ticker_name, get_fundamental,
+    sma, ema, rsi, macd, bollinger, stochastic, support_resistance
+)
+
+ticker = "{ticker}"
+
+# 종목명
+name = get_ticker_name(ticker)
+print(f"# TI 기술적 분석: {{name}} ({{ticker}})")
+print()
+
+# OHLCV 조회
+df = get_ohlcv(ticker, days=60)
+if df is None:
+    print("ERROR: 데이터 조회 실패")
+    exit()
+
+close = df['종가']
+high = df['고가']
+low = df['저가']
+
+print(f"## 기본 정보")
+print(f"| 항목 | 값 |")
+print(f"|------|-----|")
+print(f"| 현재가 | {{close.iloc[-1]:,}}원 |")
+
+# 52주 고/저
+df_year = get_ohlcv(ticker, days=252)
+if df_year is not None and not df_year.empty:
+    print(f"| 52주 최고 | {{df_year['고가'].max():,}}원 |")
+    print(f"| 52주 최저 | {{df_year['저가'].min():,}}원 |")
+print()
+
+# 기술지표
+print(f"## 기술지표")
+print(f"| 지표 | 값 | 신호 |")
+print(f"|------|-----|------|")
+
+# RSI
+rsi_val = rsi(close).iloc[-1]
+rsi_signal = "과매수" if rsi_val > 70 else "과매도" if rsi_val < 30 else "중립"
+print(f"| RSI(14) | {{rsi_val:.1f}} | {{rsi_signal}} |")
+
+# MACD
+macd_line, signal_line, hist = macd(close)
+macd_signal = "매수 (골든크로스)" if macd_line.iloc[-1] > signal_line.iloc[-1] else "매도 (데드크로스)"
+print(f"| MACD | {{macd_line.iloc[-1]:.0f}} / Signal {{signal_line.iloc[-1]:.0f}} | {{macd_signal}} |")
+
+# 스토캐스틱
+k, d = stochastic(high, low, close)
+stoch_signal = "과매수" if k.iloc[-1] > 80 else "과매도" if k.iloc[-1] < 20 else "중립"
+print(f"| 스토캐스틱 %K | {{k.iloc[-1]:.1f}} | {{stoch_signal}} |")
+
+# 볼린저
+upper, middle, lower = bollinger(close)
+curr = close.iloc[-1]
+if curr > upper.iloc[-1]:
+    bb_pos = "상단 돌파 (과열)"
+elif curr < lower.iloc[-1]:
+    bb_pos = "하단 이탈 (침체)"
+else:
+    bb_pos = "밴드 내"
+print(f"| 볼린저 | {{lower.iloc[-1]:,.0f}} ~ {{upper.iloc[-1]:,.0f}} | {{bb_pos}} |")
+print()
+
+# 지지/저항
+sr = support_resistance(high, low, close)
+print(f"## 지지/저항선")
+print(f"| 레벨 | 가격 |")
+print(f"|------|------|")
+print(f"| R2 (저항2) | {{sr['r2']:,.0f}}원 |")
+print(f"| R1 (저항1) | {{sr['r1']:,.0f}}원 |")
+print(f"| Pivot | {{sr['pivot']:,.0f}}원 |")
+print(f"| S1 (지지1) | {{sr['s1']:,.0f}}원 |")
+print(f"| S2 (지지2) | {{sr['s2']:,.0f}}원 |")
+print()
+
+# 이동평균
+print(f"## 이동평균")
+print(f"| MA | 값 | 현재가 대비 |")
+print(f"|-----|-----|------------|")
+for period in [5, 20, 60]:
+    ma_val = sma(close, period).iloc[-1]
+    vs = "상회" if curr > ma_val else "하회"
+    print(f"| {{period}}일 | {{ma_val:,.0f}}원 | {{vs}} |")
+print()
+
+# 종합 판단
+signals = []
+if rsi_val < 30: signals.append("RSI 과매도")
+if rsi_val > 70: signals.append("RSI 과매수")
+if macd_line.iloc[-1] > signal_line.iloc[-1]: signals.append("MACD 매수")
+else: signals.append("MACD 매도")
+if k.iloc[-1] < 20: signals.append("스토캐스틱 과매도")
+if k.iloc[-1] > 80: signals.append("스토캐스틱 과매수")
+
+buy_signals = sum(1 for s in signals if "매수" in s or "과매도" in s)
+sell_signals = sum(1 for s in signals if "매도" in s or "과매수" in s)
+
+if buy_signals > sell_signals:
+    overall = "매수"
+elif sell_signals > buy_signals:
+    overall = "매도"
+else:
+    overall = "중립"
+
+print(f"## 종합 판단")
+print(f"**신호**: {{overall}}")
+print(f"**근거**: {{', '.join(signals)}}")
+PYEOF
+        ```
+
+        Run the above code and return the markdown output as your result.
+        If pykrx fails, report the error - do NOT fall back to web search.
         """,
-        description=f"TI: {ticker} technicals"
+        description=f"TI: {ticker} technicals (pykrx)"
     )
 ```
 
