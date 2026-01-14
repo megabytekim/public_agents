@@ -9,6 +9,8 @@ arguments:
     description: Analysis depth (quick/standard/deep)
     required: false
     default: standard
+references:
+  - plugins/stock-analyzer-advanced/watchlist/stocks/034020/analysis.md
 ---
 
 # Stock Analysis Command
@@ -21,17 +23,30 @@ This command performs comprehensive stock analysis by **orchestrating MI/SI/TI w
 /stock-analyze (Main Context - Orchestrator)
     │
     ├─→ STEP 0: Date verification (WebSearch)
-    ├─→ STEP 1: Basic data collection (yfinance MCP / WebFetch)
     │
     ├─→ Parallel Task dispatch:
-    │   ├─→ Task(MI): Deep market data
+    │   ├─→ Task(MI): 정성적 정보 (뉴스, 기업개요, 산업동향) - 숫자 없음!
     │   ├─→ Task(SI): Sentiment analysis
-    │   └─→ Task(TI): Technical indicators (if depth=deep)
+    │   ├─→ Task(TI): 숫자 데이터 + 기술지표 (가격, 시총, PER, RSI 등)
+    │   └─→ Task(FI): 재무제표 (매출, 영업이익, 자산/부채, 성장률)
     │
-    ├─→ STEP 2: Integrate results + Strategic analysis
-    ├─→ STEP 3: Generate report
-    └─→ STEP 4: Append to watchlist (always append, never overwrite)
+    ├─→ STEP 1: Integrate results + Strategic analysis
+    ├─→ STEP 2: Generate report
+    └─→ STEP 3: Append to watchlist (always append, never overwrite)
 ```
+
+## Worker Role Division (중요!)
+
+| Worker | 수집 대상 | 수집 금지 |
+|--------|----------|----------|
+| **MI** | 뉴스, 기업개요, 산업동향, 경쟁사, 애널리스트 코멘트(정성적) | 가격, 시총, PER, 거래량, 재무제표 등 모든 숫자 |
+| **SI** | 센티먼트 점수, 포럼 의견, 이상징후 | - |
+| **TI** | 가격, 시총, PER/PBR, 52주고저, RSI, MACD, 볼린저 등 | 재무제표 (FI 담당) |
+| **FI** | 매출액, 영업이익, 순이익, 자산/부채, 성장률, PEG | 가격, 기술지표 |
+
+**역할 분리 이유**:
+- **TI**: 실시간 가격/기술지표 (pykrx/Naver Finance)
+- **FI**: 재무제표 (FnGuide requests → Playwright → yfinance fallback)
 
 ## Critical Rules
 
@@ -107,20 +122,26 @@ work_dir = f"{PLUGIN_DIR}/watchlist/stocks/{ticker}/"
 ```python
 # Dispatch all workers in ONE message (parallel execution)
 
-# MI Worker
+# MI Worker - 정성적 정보만! (숫자 데이터 수집 금지)
 Task(
     subagent_type="stock-analyzer-advanced:market-intelligence",
     prompt=f"""
-    Collect market data for {ticker}:
-    1. Current price + change (with source, timestamp)
-    2. 52-week high/low
-    3. Recent news (5 items with dates)
-    4. Financial metrics (PER, PBR, ROE)
-    5. Analyst ratings/target prices
+    Collect QUALITATIVE information for {ticker}:
 
-    Return structured data with ALL sources cited.
+    ⚠️ DO NOT COLLECT: 가격, 시총, PER, 거래량 등 숫자 데이터 (TI 담당)
+
+    ✅ COLLECT:
+    1. 최신 뉴스 (5~10개, 날짜/출처 필수, 숫자 제외한 전략적 의미)
+    2. 기업 개요 (사업 내용, 주요 제품/서비스)
+    3. 경쟁사 정보 (주요 경쟁사, 시장 포지션)
+    4. 산업 동향 (섹터 전망, 성장 드라이버)
+    5. 전략적 이벤트 (M&A, 신제품, 규제 변화)
+    6. 애널리스트 의견 (Buy/Hold/Sell, 정성적 코멘트만)
+    7. 리스크 요인 (기업 특화 리스크)
+
+    Return structured qualitative data with ALL sources cited.
     """,
-    description=f"MI: {ticker} market data"
+    description=f"MI: {ticker} qualitative info"
 )
 
 # SI Worker
@@ -146,141 +167,62 @@ Task(
     description=f"SI: {ticker} sentiment"
 )
 
-# TI Worker (only for deep analysis) - Uses local utils, NOT web search
-if depth == "deep":
-    Task(
-        subagent_type="general-purpose",
-        prompt=f"""
-        ## TI Worker: Technical Analysis for {ticker}
+# TI Worker - 숫자 데이터 + 기술지표 (항상 실행)
+Task(
+    subagent_type="stock-analyzer-advanced:technical-intelligence",
+    prompt=f"""
+    Collect ALL NUMERICAL data and technical indicators for {ticker}:
 
-        **CRITICAL**: You MUST use Bash to execute Python code with local utils.
-        Do NOT use WebSearch for technical indicators - use pykrx data directly.
+    ## 1. 숫자 데이터 (MI에서 위임)
+    - 현재가, 전일대비, 시가/고가/저가
+    - 시가총액 (Naver Finance)
+    - 52주 고저 (pykrx 정확 계산)
+    - 거래량
+    - PER, PBR, 외국인비율 (Naver Finance)
 
-        ### Execute this Python code via Bash:
+    ## 2. 기술지표
+    - RSI(14), MACD, 볼린저밴드
+    - 스토캐스틱, 이동평균 (MA5/20/60)
+    - 지지/저항선
 
-        ```bash
-        cd /Users/newyork/public_agents/plugins/stock-analyzer-advanced && python3 << 'PYEOF'
-import sys
-sys.path.insert(0, '/Users/newyork/public_agents/plugins/stock-analyzer-advanced')
+    ## 3. 종합 판단
+    - 매수/중립/매도 신호
+    - 신호 근거
 
-from utils import (
-    get_ohlcv, get_ticker_name, get_fundamental,
-    sma, ema, rsi, macd, bollinger, stochastic, support_resistance
+    Use Bash + Python with utils functions (get_naver_stock_info, get_ohlcv, rsi, macd, etc.)
+    Do NOT use WebSearch for price data.
+    """,
+    description=f"TI: {ticker} numerical + technicals"
 )
 
-ticker = "{ticker}"
+# FI Worker - 재무제표 (항상 실행)
+Task(
+    subagent_type="stock-analyzer-advanced:financial-intelligence",
+    prompt=f"""
+    Collect financial statement data for {ticker}:
 
-# 종목명
-name = get_ticker_name(ticker)
-print(f"# TI 기술적 분석: {{name}} ({{ticker}})")
-print()
+    ## 데이터 수집 우선순위 (CRITICAL)
+    1. FnGuide (utils.get_financial_data) - 1순위
+    2. FnGuide Playwright 크롤링 - 2순위 (1순위 실패 시)
+    3. yfinance MCP - 3순위 (US stocks only)
+    4. 모두 실패 시 FAIL 명시적 보고
 
-# OHLCV 조회
-df = get_ohlcv(ticker, days=60)
-if df is None:
-    print("ERROR: 데이터 조회 실패")
-    exit()
+    ## 수집 대상
+    - 매출액, 영업이익, 순이익 (3년 추이)
+    - 자산총계, 부채총계, 자본총계
+    - 매출 성장률, 영업이익 성장률 (YoY)
+    - PEG (TI의 PER 사용)
 
-close = df['종가']
-high = df['고가']
-low = df['저가']
+    ## 출력 규칙
+    - 모든 숫자에 출처 명시 필수
+    - 단위: 억원
+    - 기준 시점 명시
 
-print(f"## 기본 정보")
-print(f"| 항목 | 값 |")
-print(f"|------|-----|")
-print(f"| 현재가 | {{close.iloc[-1]:,}}원 |")
-
-# 52주 고/저
-df_year = get_ohlcv(ticker, days=252)
-if df_year is not None and not df_year.empty:
-    print(f"| 52주 최고 | {{df_year['고가'].max():,}}원 |")
-    print(f"| 52주 최저 | {{df_year['저가'].min():,}}원 |")
-print()
-
-# 기술지표
-print(f"## 기술지표")
-print(f"| 지표 | 값 | 신호 |")
-print(f"|------|-----|------|")
-
-# RSI
-rsi_val = rsi(close).iloc[-1]
-rsi_signal = "과매수" if rsi_val > 70 else "과매도" if rsi_val < 30 else "중립"
-print(f"| RSI(14) | {{rsi_val:.1f}} | {{rsi_signal}} |")
-
-# MACD
-macd_line, signal_line, hist = macd(close)
-macd_signal = "매수 (골든크로스)" if macd_line.iloc[-1] > signal_line.iloc[-1] else "매도 (데드크로스)"
-print(f"| MACD | {{macd_line.iloc[-1]:.0f}} / Signal {{signal_line.iloc[-1]:.0f}} | {{macd_signal}} |")
-
-# 스토캐스틱
-k, d = stochastic(high, low, close)
-stoch_signal = "과매수" if k.iloc[-1] > 80 else "과매도" if k.iloc[-1] < 20 else "중립"
-print(f"| 스토캐스틱 %K | {{k.iloc[-1]:.1f}} | {{stoch_signal}} |")
-
-# 볼린저
-upper, middle, lower = bollinger(close)
-curr = close.iloc[-1]
-if curr > upper.iloc[-1]:
-    bb_pos = "상단 돌파 (과열)"
-elif curr < lower.iloc[-1]:
-    bb_pos = "하단 이탈 (침체)"
-else:
-    bb_pos = "밴드 내"
-print(f"| 볼린저 | {{lower.iloc[-1]:,.0f}} ~ {{upper.iloc[-1]:,.0f}} | {{bb_pos}} |")
-print()
-
-# 지지/저항
-sr = support_resistance(high, low, close)
-print(f"## 지지/저항선")
-print(f"| 레벨 | 가격 |")
-print(f"|------|------|")
-print(f"| R2 (저항2) | {{sr['r2']:,.0f}}원 |")
-print(f"| R1 (저항1) | {{sr['r1']:,.0f}}원 |")
-print(f"| Pivot | {{sr['pivot']:,.0f}}원 |")
-print(f"| S1 (지지1) | {{sr['s1']:,.0f}}원 |")
-print(f"| S2 (지지2) | {{sr['s2']:,.0f}}원 |")
-print()
-
-# 이동평균
-print(f"## 이동평균")
-print(f"| MA | 값 | 현재가 대비 |")
-print(f"|-----|-----|------------|")
-for period in [5, 20, 60]:
-    ma_val = sma(close, period).iloc[-1]
-    vs = "상회" if curr > ma_val else "하회"
-    print(f"| {{period}}일 | {{ma_val:,.0f}}원 | {{vs}} |")
-print()
-
-# 종합 판단
-signals = []
-if rsi_val < 30: signals.append("RSI 과매도")
-if rsi_val > 70: signals.append("RSI 과매수")
-if macd_line.iloc[-1] > signal_line.iloc[-1]: signals.append("MACD 매수")
-else: signals.append("MACD 매도")
-if k.iloc[-1] < 20: signals.append("스토캐스틱 과매도")
-if k.iloc[-1] > 80: signals.append("스토캐스틱 과매수")
-
-buy_signals = sum(1 for s in signals if "매수" in s or "과매도" in s)
-sell_signals = sum(1 for s in signals if "매도" in s or "과매수" in s)
-
-if buy_signals > sell_signals:
-    overall = "매수"
-elif sell_signals > buy_signals:
-    overall = "매도"
-else:
-    overall = "중립"
-
-print(f"## 종합 판단")
-print(f"**신호**: {{overall}}")
-print(f"**근거**: {{', '.join(signals)}}")
-PYEOF
-        ```
-
-        Run the above code and return the markdown output as your result.
-        If pykrx fails, report the error - do NOT fall back to web search.
-        """,
-        description=f"TI: {ticker} technicals (pykrx)"
-    )
+    Use Bash + Python with utils functions first.
+    If utils fails, use Playwright MCP for FnGuide.
+    """,
+    description=f"FI: {ticker} financials"
+)
 ```
 
 ### Phase 3: Strategic Analysis (Main Context)
@@ -394,11 +336,11 @@ valuation_approach = {
 
 ## Analysis Depth Options
 
-| Depth | MI Scope | SI Scope | TI Scope | Time |
-|-------|----------|----------|----------|------|
-| `quick` | Price + 2 news | Skip | Skip | ~2min |
-| `standard` | Full data | Forum scan | Skip | ~5min |
-| `deep` | + Competitor comparison | + Deep sentiment | Full technicals | ~10min |
+| Depth | MI Scope | SI Scope | TI Scope | FI Scope | Time |
+|-------|----------|----------|----------|----------|------|
+| `quick` | Price + 2 news | Skip | Skip | Skip | ~2min |
+| `standard` | Full data | Forum scan | Skip | Basic (매출/영업이익) | ~5min |
+| `deep` | + Competitor comparison | + Deep sentiment | Full technicals | Full (3년 추이, PEG) | ~10min |
 
 ---
 
@@ -413,36 +355,83 @@ valuation_approach = {
 
 ---
 
-## 1. Market Data (MI)
+## 1. 숫자 데이터 (TI)
 
-### Price
-| Item | Value | Source |
-|------|-------|--------|
-| Current | $XXX | Yahoo Finance, {time} |
-| Change | +X.X% | |
-| 52W High | $XXX | |
-| 52W Low | $XXX | |
+### 가격 정보
+| 항목 | 값 | 출처 |
+|------|-----|------|
+| 현재가 | XXX,XXX원 | Naver Finance |
+| 전일대비 | +X.X% | |
+| 시가총액 | X.XX조원 | Naver Finance |
+| 52주 최고 | XXX,XXX원 | pykrx |
+| 52주 최저 | XX,XXX원 | pykrx |
 
-### Recent News
-1. [{title}]({url}) - {source}, {date}
-2. ...
-
-### Financials
-| Metric | Value | Industry Avg |
-|--------|-------|--------------|
-| PER | XX.X | XX.X |
-| PBR | X.X | X.X |
-| ROE | XX% | XX% |
+### 밸류에이션
+| 지표 | 값 | 출처 |
+|------|-----|------|
+| PER | XX.Xx | Naver Finance |
+| PBR | X.XXx | Naver Finance |
 
 ---
 
-## 2. Sentiment (SI)
+## 2. 재무제표 (FI)
+
+### 연간 재무 추이 (단위: 억원)
+| 연도 | 매출액 | 영업이익 | 순이익 | 출처 |
+|------|--------|----------|--------|------|
+| 2022 | X,XXX | X,XXX | X,XXX | FnGuide |
+| 2023 | X,XXX | X,XXX | X,XXX | FnGuide |
+| 2024 | X,XXX | X,XXX | X,XXX | FnGuide |
+
+### 성장률 분석
+| 지표 | 값 | 판단 |
+|------|-----|------|
+| 매출 성장률 (YoY) | +XX.X% | 우수/보통/부진 |
+| 영업이익 성장률 (YoY) | +XX.X% | 우수/보통/부진 |
+
+### 재무 안정성
+| 항목 | 값 | 출처 |
+|------|-----|------|
+| 자산총계 | X,XXX억원 | FnGuide |
+| 부채총계 | X,XXX억원 | FnGuide |
+| 자본총계 | X,XXX억원 | FnGuide |
+| 부채비율 | XX.X% | 계산 |
+
+### 밸류에이션 (TI 연계)
+| 지표 | 값 | 해석 |
+|------|-----|------|
+| PER | XX.X | TI 제공 |
+| PEG | X.XX | 저평가/적정/고평가 |
+
+---
+
+## 3. 정성적 정보 (MI)
+
+### 최신 뉴스
+1. [{title}]({url}) - {source}, {date}
+   - 전략적 의미: ...
+2. ...
+
+### 기업 개요
+- 사업 내용: ...
+- 주요 제품: ...
+
+### 산업 동향
+- 섹터 전망: ...
+- 경쟁 구도: ...
+
+### 애널리스트 의견
+- Buy/Hold/Sell 분포 (정성적)
+- 주요 코멘트: ...
+
+---
+
+## 4. 센티먼트 (SI)
 
 ### Score Summary
 | Platform | Score | Interpretation |
 |----------|-------|----------------|
 | Forum/Reddit | +X.X | Bullish/Bearish |
-| StockTwits | XX% Bull | |
 
 ### Key Opinions
 **Bullish**:
@@ -457,7 +446,7 @@ valuation_approach = {
 
 ---
 
-## 3. Technical Analysis (TI) - Deep only
+## 5. 기술적 분석 (TI)
 
 | Indicator | Value | Signal |
 |-----------|-------|--------|
@@ -465,14 +454,14 @@ valuation_approach = {
 | MACD | X.XX | Golden/Dead Cross |
 | Bollinger | {position} | |
 
-Support: $XXX / Resistance: $XXX
+Support: XXX,XXX원 / Resistance: XXX,XXX원
 
 ---
 
-## 4. Strategic Analysis
+## 6. 전략적 분석
 
 ### Sector Position
-{Analysis using sector knowledge}
+{MI 기반 산업 분석}
 
 ### Moat Assessment
 - Network Effects: {Yes/No/Partial}
@@ -486,23 +475,23 @@ Support: $XXX / Resistance: $XXX
 
 ---
 
-## 5. Investment Strategy
+## 7. 투자 전략
 
 ### Entry Points
 | Level | Price | Allocation |
 |-------|-------|------------|
-| 1st | $XXX | 30% |
-| 2nd | $XXX | 40% |
-| 3rd | $XXX | 30% |
+| 1st | XXX,XXX원 | 30% |
+| 2nd | XXX,XXX원 | 40% |
+| 3rd | XXX,XXX원 | 30% |
 
 ### Targets & Stop Loss
-- Target 1: $XXX (+XX%)
-- Target 2: $XXX (+XX%)
-- Stop Loss: $XXX (-X%)
+- Target 1: XXX,XXX원 (+XX%)
+- Target 2: XXX,XXX원 (+XX%)
+- Stop Loss: XXX,XXX원 (-X%)
 
 ---
 
-## 6. Risks
+## 8. 리스크
 
 1. **{Risk 1}**: {description}
 2. **{Risk 2}**: {description}
@@ -510,22 +499,24 @@ Support: $XXX / Resistance: $XXX
 
 ---
 
-## 7. Conclusion
+## 9. 결론
 
 **Rating**: {Buy/Hold/Sell}
 **Confidence**: {High/Medium/Low}
 
-### MI vs SI Cross-Check
-- Analyst View: {Buy/Neutral/Sell}
-- Retail Sentiment: {Bullish/Neutral/Bearish}
-- Divergence: {Yes/No} - {interpretation}
+### Cross-Check
+- TI 기술적 신호: {Buy/Neutral/Sell}
+- FI 재무 상태: {성장/안정/주의}
+- SI 개인 센티먼트: {Bullish/Neutral/Bearish}
+- MI 애널리스트 의견: {Buy/Neutral/Sell}
+- 괴리: {Yes/No} - {interpretation}
 
 ### Monitoring Points
 - [ ] {Point 1}
 - [ ] {Point 2}
 
 ---
-*This is analysis reference only, not financial advice.*
+*이 분석은 투자 참고 자료이며, 투자 권유가 아닙니다.*
 *Tags: #analysis #{sector} #{ticker}*
 ```
 
@@ -536,7 +527,7 @@ Support: $XXX / Resistance: $XXX
 When this command is invoked:
 
 1. **Main context** verifies date and basic info
-2. **Main context** dispatches MI + SI (+ TI) workers in parallel
+2. **Main context** dispatches MI + SI + TI + FI workers in parallel
 3. **Main context** waits for results and integrates
 4. **Main context** applies sector knowledge for strategic analysis
 5. **Main context** generates report and **APPENDS** to watchlist

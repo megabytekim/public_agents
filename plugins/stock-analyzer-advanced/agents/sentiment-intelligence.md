@@ -2,7 +2,7 @@
 name: sentiment-intelligence
 description: Social/community sentiment collection worker agent. Collects and analyzes retail investor sentiment when called by stock-analyze command.
 model: sonnet
-skills: [websearch, playwright]
+tools: [WebSearch, WebFetch, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_click]
 ---
 
 You are the **Sentiment Intelligence (SI) Worker** of Stock Analyzer Advanced.

@@ -171,7 +171,8 @@
         "./agents/market-intelligence.md",
         "./agents/sentiment-intelligence.md",
         "./agents/technical-intelligence.md",
-        "./agents/financial-ml-analyst.md"
+        "./agents/financial-ml-analyst.md",
+        "./agents/financial-intelligence.md"
       ],
       "skills": []
     }
