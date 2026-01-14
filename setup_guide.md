@@ -36,13 +36,14 @@
 | jq | 1.8.1 | `/opt/homebrew/bin/jq` |
 
 ### Enabled Plugins
-| Plugin | Status |
-|--------|--------|
-| stock-analyzer-advanced | Enabled |
-| research-papers | Enabled |
-| claude-workflows | Enabled |
-| web3-ai | Enabled |
-| vehicle-contamination-or | Enabled |
+| Plugin | Status | Source |
+|--------|--------|--------|
+| planning-with-files | Enabled | OthmanAdi/planning-with-files (Marketplace) |
+| stock-analyzer-advanced | Enabled | Local |
+| research-papers | Enabled | Local |
+| claude-workflows | Enabled | Local |
+| web3-ai | Enabled | Local |
+| vehicle-contamination-or | Enabled | Local |
 
 ### MCP Servers
 | Server | Purpose |
@@ -111,24 +112,28 @@ brew install jq
 
 ## Step-by-Step Setup
 
-### Step 1: Clone Repository
+### Step 3: Install Essential Plugins (Claude Code 내에서 실행)
+
+Claude Code를 시작한 후, 다음 플러그인들을 설치합니다:
 
 ```bash
-git clone https://github.com/megabytekim/public_agents.git ~/public_agents
-cd ~/public_agents
+claude
 ```
 
-### Step 2: Install Claude Code
-
-```bash
-# Via npm (global installation)
-npm install -g @anthropic-ai/claude-code
-
-# Verify
-claude --version
+**planning-with-files** (Manus-style 파일 기반 계획 관리):
+```
+/plugin marketplace add OthmanAdi/planning-with-files
+/plugin install planning-with-files@planning-with-files
 ```
 
-### Step 3: Install Python Dependencies
+> **Note**: 이 플러그인은 복잡한 작업 시 `task_plan.md`, `findings.md`, `progress.md` 파일을 생성하여 컨텍스트 관리를 도와줍니다. Meta가 $2B에 인수한 Manus AI의 컨텍스트 엔지니어링 패턴을 구현합니다.
+
+설치 확인:
+```
+/plugins
+```
+
+### Step 4: Install Python Dependencies
 
 ```bash
 cd ~/public_agents/plugins/stock-analyzer-advanced/utils
@@ -149,140 +154,72 @@ pytest-mock>=3.0.0
 pip install beautifulsoup4 lxml requests
 ```
 
-### Step 4: Setup Notification Hook (Optional)
-
-```bash
-# Create hooks directory
-mkdir -p ~/.claude/hooks
-
-# Create notify.sh
-cat > ~/.claude/hooks/notify.sh << 'EOF'
-#!/bin/bash
-# Claude Code Notification Hook
-LOG_FILE="/tmp/claude-hook-debug.log"
-echo "=== $(date) ===" >> "$LOG_FILE"
-
-JSON_INPUT=$(cat)
-echo "Input: $JSON_INPUT" >> "$LOG_FILE"
-
-NOTIFICATION_TYPE=$(echo "$JSON_INPUT" | jq -r '.notification_type // empty')
-MESSAGE=$(echo "$JSON_INPUT" | jq -r '.message // "Claude Code 알림"')
-
-case "$NOTIFICATION_TYPE" in
-  "permission_prompt")
-    TITLE="Claude Code"
-    SUBTITLE="권한 승인 필요"
-    SOUND="Ping"
-    ;;
-  "idle_prompt")
-    TITLE="Claude Code"
-    SUBTITLE="입력 대기 중"
-    SOUND="Blow"
-    ;;
-  *)
-    exit 0
-    ;;
-esac
-
-osascript -e "display notification \"$MESSAGE\" with title \"$TITLE\" subtitle \"$SUBTITLE\" sound name \"$SOUND\"" 2>> "$LOG_FILE"
-exit 0
-EOF
-
-# Make executable
-chmod +x ~/.claude/hooks/notify.sh
-```
-
 ---
 
 ## MCP Server Configuration
 
-### Claude Code Settings (`~/.claude/settings.json`)
+MCP 서버는 `claude mcp add` 명령어로 등록합니다. JSON 파일을 직접 편집하는 방식은 지원하지 않습니다.
 
-```json
-{
-  "hooks": {
-    "Notification": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/YOUR_USERNAME/.claude/hooks/notify.sh",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
-  },
-  "mcpServers": {
-    "mcp-obsidian": {
-      "command": "/opt/homebrew/bin/uvx",
-      "args": ["mcp-obsidian"],
-      "env": {
-        "OBSIDIAN_API_KEY": "YOUR_OBSIDIAN_API_KEY",
-        "OBSIDIAN_HOST": "127.0.0.1",
-        "OBSIDIAN_PORT": "27123",
-        "NO_PROXY": "127.0.0.1,localhost"
-      }
-    },
-    "playwright": {
-      "command": "npx",
-      "args": ["@playwright/mcp@latest", "--headless"]
-    },
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"]
-    },
-    "memory": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"]
-    },
-    "arxiv": {
-      "command": "uv",
-      "args": [
-        "tool", "run", "arxiv-mcp-server",
-        "--storage-path", "/Users/YOUR_USERNAME/public_agents/plugins/vehicle-contamination-or/private/paper"
-      ]
-    },
-    "yfinance": {
-      "command": "uvx",
-      "args": ["yfmcp@latest"]
-    }
-  }
-}
+### MCP 서버 등록 (터미널에서 실행)
+
+```bash
+# playwright (브라우저 자동화)
+claude mcp add -s user playwright -- npx @playwright/mcp@latest --headless
+
+# context7 (라이브러리 문서)
+claude mcp add -s user context7 -- npx -y @upstash/context7-mcp@latest
+
+# memory (지식 그래프)
+claude mcp add -s user memory -- npx -y @modelcontextprotocol/server-memory
+
+# arxiv (논문 검색) - storage-path는 실제 경로로 변경
+claude mcp add -s user arxiv -- uv tool run arxiv-mcp-server --storage-path /Users/YOUR_USERNAME/public_agents/plugins/vehicle-contamination-or/private/paper
+
+# yfinance (주식 데이터)
+claude mcp add -s user yfinance -- uvx yfmcp@latest
 ```
 
 > **Note**: `YOUR_USERNAME`을 실제 사용자명으로 변경하세요.
 
-### Obsidian Local REST API Setup (mcp-obsidian용)
+### 등록 확인
+
+```bash
+claude mcp list
+```
+
+### Scope 옵션
+
+| Scope | 설명 | 설정 파일 위치 |
+|-------|------|---------------|
+| `-s local` | 현재 프로젝트만 | `.claude/settings.local.json` |
+| `-s user` | 모든 프로젝트 (권장) | `~/.claude.json` |
+| `-s project` | 프로젝트 공유용 | `.claude/settings.json` |
+
+### MCP 서버 관리 명령어
+
+```bash
+# 서버 목록 및 상태 확인
+claude mcp list
+
+# 서버 제거
+claude mcp remove <server-name>
+
+# 도움말
+claude mcp --help
+```
+
+### Obsidian MCP 서버 (Optional)
+
+Obsidian 연동이 필요한 경우:
 
 1. Obsidian 실행
 2. Settings > Community plugins > Browse
 3. "Local REST API" 검색 및 설치
-4. 플러그인 활성화
-5. Settings에서 API Key 복사
-6. `~/.claude/settings.json`의 `OBSIDIAN_API_KEY`에 붙여넣기
-
-### MCP Server 별 설치 명령
+4. 플러그인 활성화 후 Settings에서 API Key 복사
+5. 환경변수와 함께 MCP 서버 등록:
 
 ```bash
-# playwright (브라우저 자동화)
-npx @playwright/mcp@latest --help
-
-# context7 (라이브러리 문서)
-npx @upstash/context7-mcp@latest
-
-# memory (지식 그래프)
-npx @modelcontextprotocol/server-memory
-
-# arxiv (논문 검색)
-uv tool install arxiv-mcp-server
-
-# yfinance (주식 데이터)
-uvx yfmcp@latest
-
-# mcp-obsidian (Obsidian 연동)
-uvx mcp-obsidian
+claude mcp add -s user -e OBSIDIAN_API_KEY=YOUR_API_KEY -e OBSIDIAN_HOST=127.0.0.1 -e OBSIDIAN_PORT=27123 -e NO_PROXY=127.0.0.1,localhost mcp-obsidian -- uvx mcp-obsidian
 ```
 
 ---
@@ -297,22 +234,6 @@ claude
 
 # Claude Code 내에서:
 # /install-plugin megabytekim-agents
-```
-
-### Method 2: Manual Installation
-
-플러그인은 이미 repository에 포함되어 있습니다. `~/.claude/settings.json`에서 활성화하면 됩니다:
-
-```json
-{
-  "enabledPlugins": {
-    "stock-analyzer-advanced@megabytekim-agents": true,
-    "research-papers@megabytekim-agents": true,
-    "claude-workflows@megabytekim-agents": true,
-    "web3-ai@megabytekim-agents": true,
-    "vehicle-contamination-or@megabytekim-agents": true
-  }
-}
 ```
 
 ### Plugin Structure
@@ -355,9 +276,11 @@ claude --version
 ### 2. Check MCP Servers
 
 ```bash
-# Claude Code 시작 후 MCP 서버 상태 확인
-claude
-# 내부에서: /mcp status
+# 터미널에서 MCP 서버 상태 확인
+claude mcp list
+
+# 또는 Claude Code 내부에서
+/mcp
 ```
 
 ### 3. Check Python Environment
@@ -416,11 +339,16 @@ public_agents/
 ### Issue 1: MCP Server 연결 실패
 
 ```bash
-# uvx 경로 확인
-which uvx  # /opt/homebrew/bin/uvx 또는 ~/.local/bin/uvx
+# MCP 서버 상태 확인
+claude mcp list
 
-# settings.json에서 절대 경로 사용
-"command": "/opt/homebrew/bin/uvx"
+# 서버 재등록
+claude mcp remove <server-name>
+claude mcp add -s user <server-name> -- <command> <args>
+
+# uvx/npx 경로 확인
+which uvx  # /opt/homebrew/bin/uvx 또는 ~/.local/bin/uvx
+which npx  # /opt/homebrew/bin/npx
 ```
 
 ### Issue 2: pykrx Import Error
@@ -457,6 +385,69 @@ brew install node
 npx playwright install chromium
 ```
 
+### Issue 6: 플러그인 enabled인데 커맨드가 안 보임 (.orphaned_at 문제)
+
+**증상**: `/plugins`에서 플러그인이 Enabled로 표시되지만, 슬래시 커맨드 자동완성에 나타나지 않음
+
+**원인**: 플러그인 캐시 디렉토리에 `.orphaned_at` 파일이 생성되어 플러그인이 "고아" 상태로 표시됨
+
+**진단**:
+```bash
+# .orphaned_at 파일 존재 여부 확인
+find ~/.claude/plugins/cache -name ".orphaned_at"
+```
+
+**해결 방법**:
+```bash
+# 특정 플러그인의 .orphaned_at 파일 삭제
+rm ~/.claude/plugins/cache/<plugin-name>/<plugin-name>/<version>/.orphaned_at
+
+# 예: planning-with-files
+rm ~/.claude/plugins/cache/planning-with-files/planning-with-files/2.1.2/.orphaned_at
+
+# 또는 모든 .orphaned_at 파일 일괄 삭제
+find ~/.claude/plugins/cache -name ".orphaned_at" -delete
+```
+
+삭제 후 Claude Code를 재시작하세요.
+
+### Issue 7: .orphaned_at 파일이 계속 재생성됨
+
+**증상**: Issue 6의 방법으로 `.orphaned_at` 파일을 삭제해도 Claude Code 실행 시 다시 생성됨
+
+**원인**: Claude Code 내부 플러그인 관리 로직이 플러그인을 orphaned로 판단하여 지속적으로 마킹함
+
+**진단**:
+```bash
+# .orphaned_at 파일의 타임스탬프 확인 (삭제 후 재생성되는지)
+cat ~/.claude/plugins/cache/planning-with-files/planning-with-files/2.1.2/.orphaned_at
+# 출력: Unix timestamp (밀리초) - 예: 1768396911156
+```
+
+**해결 방법 (플러그인 완전 재설치)**:
+```bash
+# 1. Claude Code 종료
+
+# 2. 플러그인 캐시 및 마켓플레이스 디렉토리 완전 삭제
+rm -rf ~/.claude/plugins/cache/planning-with-files
+rm -rf ~/.claude/plugins/marketplaces/planning-with-files
+
+# 3. Claude Code 재시작 후 플러그인 재설치
+/plugin marketplace add OthmanAdi/planning-with-files
+/plugin install planning-with-files@planning-with-files
+
+# 4. 설치 확인
+/plugins
+```
+
+**대안 (자동완성 없이 사용)**:
+
+재설치 후에도 문제가 지속되면, 슬래시 커맨드를 직접 타이핑하여 사용 가능:
+```
+/planning-with-files
+```
+(자동완성 목록에 없어도 직접 입력하면 동작함)
+
 ---
 
 ## Quick Setup Script
@@ -484,12 +475,22 @@ pip install pykrx pandas numpy requests beautifulsoup4 lxml pytest
 echo "Setting up hooks..."
 mkdir -p ~/.claude/hooks
 
-# 4. Done
+# 4. Register MCP servers
+echo "Registering MCP servers..."
+claude mcp add -s user playwright -- npx @playwright/mcp@latest --headless
+claude mcp add -s user context7 -- npx -y @upstash/context7-mcp@latest
+claude mcp add -s user memory -- npx -y @modelcontextprotocol/server-memory
+claude mcp add -s user yfinance -- uvx yfmcp@latest
+
+# 5. Verify MCP servers
+echo "Verifying MCP servers..."
+claude mcp list
+
+# 6. Done
 echo "=== Setup Complete ==="
 echo "Next steps:"
-echo "1. Configure ~/.claude/settings.json with MCP servers"
-echo "2. Run 'claude' in the project directory"
-echo "3. Enable plugins via /install-plugin"
+echo "1. Run 'claude' in the project directory"
+echo "2. Enable plugins via /install-plugin"
 ```
 
 ---
@@ -498,6 +499,9 @@ echo "3. Enable plugins via /install-plugin"
 
 | Date | Changes |
 |------|---------|
+| 2026-01-14 | MCP 설정 방식을 `claude mcp add` 명령어 기반으로 변경 (JSON 직접 편집 방식 제거) |
+| 2026-01-14 | Added Issue 6-7: .orphaned_at 문제 및 플러그인 재설치 방법 |
+| 2026-01-14 | Added planning-with-files plugin installation (Step 3) |
 | 2026-01-14 | Initial setup guide created |
 
 ---

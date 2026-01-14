@@ -351,7 +351,6 @@ AI: "포트폴리오를 분석해보니 기술주 비중이 80%네요.
 - Claude API access
 - Web browser for Playwright
 - Stable internet connection
-- (Optional) Obsidian for watchlist integration
 ```
 
 ### Quick Start with PI (Portfolio Intelligence)
@@ -370,19 +369,19 @@ agent portfolio-intelligence
 > PI: "종합 분석 결과: [watchlist 생성]"
 ```
 
-### Watchlist Integration
+### Output Structure
 ```yaml
-# Obsidian 연동 설정
-obsidian_path: /Users/newyork/Desktop/obsidian_1/0. PARA/2. Areas/Investment/투자 아이디어
-auto_sync: true
-update_frequency: daily
+# 분석 결과 저장 경로
+output_path: stock_checklist/
 
-# Watchlist 구조
-watchlist/
-  ├── stocks/          # 개별 종목 분석
-  ├── sectors/         # 섹터별 리포트
-  ├── daily_summaries/ # 일일 요약
-  └── performance/     # 성과 추적
+# 폴더 구조
+stock_checklist/
+  ├── {종목명}_{종목코드}/
+  │   └── stock_analyzer_summary.md
+  ├── 삼성전자_005930/
+  │   └── stock_analyzer_summary.md
+  └── NVIDIA_NVDA/
+      └── stock_analyzer_summary.md
 ```
 
 ## 결론

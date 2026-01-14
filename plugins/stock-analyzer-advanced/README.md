@@ -58,8 +58,8 @@ Stock Analyzer Advanced는 Anthropic의 AI espionage 연구에서 영감을 받�
 # 최상위 에이전트 실행
 agent portfolio-intelligence
 
-# 개별 기업 분석 (Obsidian 파일 제공)
-> "이 파일 분석해줘: /Users/newyork/Desktop/obsidian_1/0. PARA/2. Areas/Investment/투자 아이디어/토큰증권/케이옥션.md"
+# 개별 기업 분석
+> "삼성전자 분석해줘"
 
 # 또는 기업명으로 직접
 > "케이옥션 분석해줘"
@@ -80,10 +80,9 @@ agent market-intelligence
 
 #### Portfolio Intelligence 사용
 ```
-사용자: "토큰증권/케이옥션.md 업데이트해줘"
+사용자: "케이옥션 분석 업데이트해줘"
 
-PI: "케이옥션 파일을 읽었습니다.
-    [Obsidian MCP 사용]
+PI: "케이옥션 기존 분석을 확인했습니다.
 
     기존 분석 (2025-11-15):
     - 현재가: ₩XX,XXX
@@ -97,7 +96,7 @@ PI: "케이옥션 파일을 읽었습니다.
     - 최근 뉴스: [...]
     - 투자 의견: [업데이트됨]
 
-    파일에 추가했습니다."
+    stock_checklist/케이옥션_102370/stock_analyzer_summary.md에 저장했습니다."
 ```
 
 #### Market Intelligence 사용

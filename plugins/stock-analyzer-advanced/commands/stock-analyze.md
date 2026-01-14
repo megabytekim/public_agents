@@ -44,7 +44,8 @@ This command performs comprehensive stock analysis by **orchestrating MI/SI/TI w
     │
     ├─→ STEP 1: Integrate results + Strategic analysis
     ├─→ STEP 2: Generate report
-    └─→ STEP 3: Append to watchlist (always append, never overwrite)
+    ├─→ STEP 3: Save to stock_checklist/{종목명}_{종목코드}/stock_analyzer_summary.md
+    └─→ STEP 4: Git add/push via stock-git-add-push (retry 2x on failure)
 ```
 
 ## Worker Role Division (중요!)
@@ -94,15 +95,19 @@ This preserves historical context for trend analysis.
 
 ---
 
-## Plugin Path (IMPORTANT)
+## Output Path (IMPORTANT)
 
 ```python
-# All paths MUST be relative to project root, prefixed with plugin directory
-PLUGIN_DIR = "plugins/stock-analyzer-advanced"
+# Analysis results are saved to stock_checklist directory
+OUTPUT_DIR = "stock_checklist"
+
+# Folder naming: {company_name}_{ticker}
+# File naming: stock_analyzer_summary.md
 
 # Examples:
-# ✅ Correct: f"{PLUGIN_DIR}/watchlist/stocks/{ticker}/"
-# ❌ Wrong:   f"watchlist/stocks/{ticker}/"  (creates at project root!)
+# ✅ Korean: f"{OUTPUT_DIR}/삼성전자_005930/stock_analyzer_summary.md"
+# ✅ US: f"{OUTPUT_DIR}/NVIDIA_NVDA/stock_analyzer_summary.md"
+# ❌ Wrong: f"{OUTPUT_DIR}/{ticker}/analysis.md"  (missing company name!)
 ```
 
 ---
@@ -118,13 +123,16 @@ PLUGIN_DIR = "plugins/stock-analyzer-advanced"
 # Good: "what is today's date" or "current date"
 WebSearch("what is today's date")
 
-# 2. Determine market type
+# 2. Determine market type and get company name
 market = "KRX" if ticker.isdigit() else "US"
+# Company name is retrieved from MI worker or yfinance
 
-# 3. Create/check work directory
-# ⚠️ IMPORTANT: Use plugin-relative path, NOT project root!
-PLUGIN_DIR = "plugins/stock-analyzer-advanced"
-work_dir = f"{PLUGIN_DIR}/watchlist/stocks/{ticker}/"
+# 3. Create/check output directory
+# ⚠️ IMPORTANT: Use stock_checklist directory with {종목명}_{종목코드} format!
+OUTPUT_DIR = "stock_checklist"
+# company_name is obtained from data collection (MI worker or yfinance)
+work_dir = f"{OUTPUT_DIR}/{company_name}_{ticker}/"
+output_file = f"{work_dir}/stock_analyzer_summary.md"
 ```
 
 ### Phase 2: Parallel Worker Dispatch
@@ -249,27 +257,91 @@ After workers complete, main context performs strategic analysis using sector kn
 # Formulate entry/exit strategy
 ```
 
-### Phase 4: Report Generation & Append
+### Phase 4: Report Generation & Save
 
 ```python
 # 1. READ the golden sample for format reference
 Read("plugins/stock-analyzer-advanced/watchlist/stocks/034020/analysis.md")
 # Use this as structure/format guide (목차, 테이블, 톤)
 
-# 2. Generate report following the golden sample format
+# 2. Create output directory with {종목명}_{종목코드} format
+OUTPUT_DIR = "stock_checklist"
+folder_name = f"{company_name}_{ticker}"  # e.g., "삼성전자_005930", "NVIDIA_NVDA"
+work_dir = f"{OUTPUT_DIR}/{folder_name}"
+
+# Create directory if not exists
+mkdir -p {work_dir}
+
+# 3. Generate report following the golden sample format
 # APPEND to existing file (never overwrite)
-# ⚠️ Use plugin-relative path!
-PLUGIN_DIR = "plugins/stock-analyzer-advanced"
-obsidian_append_content(
-    filepath=f"{PLUGIN_DIR}/watchlist/stocks/{ticker}/analysis.md",
-    content=f"""
+output_file = f"{work_dir}/stock_analyzer_summary.md"
+
+# Read existing content (if file exists) and append new analysis
+# Use Edit tool to append, or Write tool for new file
+append_content = f"""
 ---
 
 ## Analysis: {current_datetime}
 
 {report_content}
 """
+```
+
+### Phase 5: Git Add & Push (with Retry)
+
+After saving the report, commit and push using the `stock-git-add-push` skill.
+
+```python
+# 1. Prepare file path for git
+output_file = f"stock_checklist/{company_name}_{ticker}/stock_analyzer_summary.md"
+
+# 2. Invoke stock-git-add-push skill
+# ⚠️ Path MUST be: stock_checklist/{종목명}_{종목코드}/stock_analyzer_summary.md
+Skill(
+    skill="stock-git-add-push",
+    args=f'files="{output_file}" message="Add {company_name} ({ticker}) analysis"'
 )
+```
+
+#### Retry Logic (MANDATORY)
+
+If git add/push fails, retry with corrected path format:
+
+```python
+MAX_RETRIES = 2
+retry_count = 0
+
+while retry_count < MAX_RETRIES:
+    try:
+        # Attempt git add/push
+        result = Skill("stock-git-add-push", args=f'files="{output_file}"')
+
+        if "REJECTED" in result or "error" in result:
+            retry_count += 1
+            print(f"⚠️ Git push failed (attempt {retry_count}/{MAX_RETRIES})")
+
+            # Verify path format: stock_checklist/{종목명}_{종목코드}/
+            if not output_file.startswith("stock_checklist/"):
+                output_file = f"stock_checklist/{company_name}_{ticker}/stock_analyzer_summary.md"
+
+            # Verify folder has underscore
+            folder_name = output_file.split("/")[1]
+            if "_" not in folder_name:
+                output_file = f"stock_checklist/{company_name}_{ticker}/stock_analyzer_summary.md"
+
+            continue
+
+        # Success
+        print(f"✅ Git push completed: {output_file}")
+        break
+
+    except Exception as e:
+        retry_count += 1
+        print(f"❌ Error (attempt {retry_count}/{MAX_RETRIES}): {e}")
+
+if retry_count >= MAX_RETRIES:
+    print("❌ Git push failed after 2 retries. Manual intervention required.")
+    print(f"Expected path format: stock_checklist/{{종목명}}_{{종목코드}}/stock_analyzer_summary.md")
 ```
 
 ---
@@ -543,11 +615,14 @@ Support: XXX,XXX원 / Resistance: XXX,XXX원
 
 When this command is invoked:
 
-1. **Main context** verifies date and basic info
+1. **Main context** verifies date and basic info (including company name)
 2. **Main context** dispatches MI + SI + TI + FI workers in parallel
 3. **Main context** waits for results and integrates
 4. **Main context** applies sector knowledge for strategic analysis
-5. **Main context** generates report and **APPENDS** to watchlist
+5. **Main context** creates `stock_checklist/{종목명}_{종목코드}/` folder
+6. **Main context** generates report and **APPENDS** to `stock_analyzer_summary.md`
+7. **Main context** invokes `stock-git-add-push` skill to commit & push
+   - On failure: retry up to 2 times with corrected path format
 
 ```
 Analyzing: {{ticker}}
