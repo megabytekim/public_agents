@@ -106,7 +106,7 @@ def get_naver_stock_info(ticker: str) -> Optional[dict]:
                     value_elem = td.select_one("em") or td
                     value_text = value_elem.text.strip()
 
-                    if "시가총액" in label:
+                    if label == "시가총액":  # 정확 매칭 (시가총액순위와 구분)
                         result["market_cap"] = value_text
                     elif "PER" in label:
                         result["per"] = _parse_float(value_text)
