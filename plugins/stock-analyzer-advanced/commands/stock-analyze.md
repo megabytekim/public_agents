@@ -46,7 +46,7 @@ This command performs comprehensive stock analysis by **orchestrating MI/SI/TI w
 
 **역할 분리 이유**:
 - **TI**: 실시간 가격/기술지표 (pykrx/Naver Finance)
-- **FI**: 재무제표 (FnGuide requests → Playwright → yfinance fallback)
+- **FI**: 재무제표 (FnGuide requests → yfinance fallback)
 
 ## Critical Rules
 
@@ -203,9 +203,9 @@ Task(
 
     ## 데이터 수집 우선순위 (CRITICAL)
     1. FnGuide (utils.get_financial_data) - 1순위
-    2. FnGuide Playwright 크롤링 - 2순위 (1순위 실패 시)
-    3. yfinance MCP - 3순위 (US stocks only)
-    4. 모두 실패 시 FAIL 명시적 보고
+    2. yfinance MCP - 2순위 (US stocks only)
+    3. 모두 실패 시 FAIL 명시적 보고
+    ⚠️ Playwright 사용 금지 - requests만 사용
 
     ## 수집 대상
     - 매출액, 영업이익, 순이익 (3년 추이)
@@ -219,7 +219,8 @@ Task(
     - 기준 시점 명시
 
     Use Bash + Python with utils functions first.
-    If utils fails, use Playwright MCP for FnGuide.
+    If utils fails, use yfinance MCP (US stocks only).
+    ⚠️ Playwright 사용 금지.
     """,
     description=f"FI: {ticker} financials"
 )
