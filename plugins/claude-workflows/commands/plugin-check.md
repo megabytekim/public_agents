@@ -8,6 +8,19 @@ argument-hint: [plugin-name]
 
 플러그인 수정 후 필요한 체크리스트를 자동으로 검증합니다.
 
+## 캐시 경로 정보
+
+> **공식 확인**: 아래 캐시 경로는 [Claude Code GitHub Issue #16453](https://github.com/anthropics/claude-code/issues/16453)에서 확인된 공식 경로입니다.
+
+| 경로 | 용도 |
+|------|------|
+| `~/.claude/plugins/cache/` | 플러그인 캐시 (복사된 파일들) |
+| `~/.claude/plugins/marketplaces/` | 마켓플레이스 git 저장소 |
+
+```
+~/.claude/plugins/cache/{marketplace-name}/{plugin-name}/{version-or-commit}/
+```
+
 ## 작업 순서
 
 ### Step 1: 인자 파싱
@@ -56,7 +69,6 @@ for plugin in plugins:
 actual_agents = Glob(f"{source_dir}/agents/*.md")
 registered_agents = [a.lstrip('./') for a in plugin.get("agents", [])]
 
-# 등록 안 된 파일 체크
 for actual in actual_agents:
     if actual not in registered_agents:
         warnings.append(f"⚠️ Unregistered agent: {actual}")
@@ -80,37 +92,27 @@ cache_base = "~/.claude/plugins/cache/megabytekim-agents"
 plugin_cache_path = f"{cache_base}/{plugin_name}"
 
 # 캐시된 버전들 확인
-cached_versions = Bash(f"ls {plugin_cache_path}/ 2>/dev/null")  # 예: 1.0.0, 1.1.0
+cached_versions = Bash(f"ls {plugin_cache_path}/ 2>/dev/null")
 
 for version in cached_versions:
-    # 캐시된 agents
     cached_agents = Glob(f"{plugin_cache_path}/{version}/agents/*.md")
 
-    # 실제 agents와 비교
     for cached in cached_agents:
         filename = os.path.basename(cached)
         actual_path = f"{source_dir}/agents/{filename}"
 
         if not file_exists(actual_path):
-            orphaned.append({
-                "type": "agent",
-                "cached_path": cached,
-                "expected_path": actual_path
-            })
             warnings.append(f"👻 Orphaned cache: {filename} (캐시에만 존재)")
 ```
 
-##### Orphaned Cache 해결 방법
-
+**Orphaned Cache 해결:**
 ```bash
 # 특정 파일만 삭제
-rm ~/.claude/plugins/cache/megabytekim-agents/{plugin_name}/{version}/agents/{orphaned_file}.md
+rm ~/.claude/plugins/cache/megabytekim-agents/{plugin_name}/{version}/agents/{file}.md
 
-# 또는 플러그인 캐시 전체 삭제 (재설치됨)
+# 플러그인 캐시 전체 삭제 (재설치됨)
 rm -rf ~/.claude/plugins/cache/megabytekim-agents/{plugin_name}/
 ```
-
-> 캐시 삭제 후 **Claude Code 재시작** 필요
 
 ### Step 4: Git Status 체크
 
@@ -118,19 +120,14 @@ rm -rf ~/.claude/plugins/cache/megabytekim-agents/{plugin_name}/
 cd {base_path} && git status --porcelain
 ```
 
-변경된 파일이 있으면:
-- `M` (Modified): 수정됨
-- `A` (Added): 새 파일
-- `D` (Deleted): 삭제됨
-- `??` (Untracked): 추적 안됨
+- `M`: 수정됨, `A`: 새 파일, `D`: 삭제됨, `??`: 추적 안됨
 
 ### Step 5: 결과 출력
 
 ```markdown
 ## 🔍 Plugin Check 결과
 
-### 대상 플러그인
-- {plugin_name or "전체"}
+### 대상: {plugin_name or "전체"}
 
 ### ✅ 파일 검증
 | 유형 | 등록 | 실제 | 상태 |
@@ -138,64 +135,46 @@ cd {base_path} && git status --porcelain
 | Agents | 5 | 5 | ✅ |
 | Commands | 4 | 4 | ✅ |
 
-### ❌ 오류 (있다면)
+### ❌ 오류
 - Missing agent: ./agents/xxx.md
 
-### ⚠️ 경고 (있다면)
+### ⚠️ 경고
 - Unregistered command: ./commands/yyy.md
 
-### 👻 Orphaned Cache (있다면)
-| 파일 | 캐시 위치 | 조치 |
-|------|----------|------|
-| paper-researcher.md | ~/.claude/plugins/cache/.../1.1.0/agents/ | `rm {path}` |
+### 👻 Orphaned Cache
+| 파일 | 조치 |
+|------|------|
+| paper-researcher.md | `rm ~/.claude/plugins/cache/.../agents/paper-researcher.md` |
 
 ### 📝 Git Status
-```
 M  plugins/xxx/agents/paper-processor.md
-M  .claude-plugin/marketplace.json
-```
-
-### 🔄 재시작 필요 여부
-{changes_detected ? "⚠️ Claude Code 재시작 필요" : "✅ 재시작 불필요"}
 
 ### 📋 다음 단계
-1. [ ] 오류 수정 (있다면)
-2. [ ] 미등록 파일 marketplace.json에 추가 (필요시)
-3. [ ] Claude Code 재시작: `Ctrl+C` → `claude`
-4. [ ] `/agents` 또는 `/skills` 로 등록 확인
+1. [ ] 오류 수정
+2. [ ] 미등록 파일 marketplace.json에 추가
+3. [ ] Claude Code 재시작
 ```
 
 ---
 
-## 검증 항목 체크리스트
+## 검증 항목 요약
 
 | # | 검증 항목 | 설명 |
 |---|-----------|------|
-| 1 | **파일 존재** | marketplace.json에 등록된 파일이 실제 존재하는지 |
-| 2 | **미등록 파일** | 실제 존재하지만 marketplace.json에 없는 파일 |
-| 3 | **Orphaned Cache** | 캐시에만 존재하고 실제 폴더에 없는 파일 (👻 유령 에이전트) |
-| 4 | **Git 상태** | 커밋 안 된 변경사항 |
-| 5 | **재시작 필요** | agents/commands 변경 시 재시작 필요 |
+| 1 | 파일 존재 | marketplace.json에 등록된 파일이 실제 존재하는지 |
+| 2 | 미등록 파일 | 실제 존재하지만 marketplace.json에 없는 파일 |
+| 3 | Orphaned Cache | 캐시에만 존재하고 실제 폴더에 없는 파일 |
+| 4 | Git 상태 | 커밋 안 된 변경사항 |
 
 ---
 
 ## 재시작이 필요한 경우
 
-다음 파일이 변경되면 Claude Code 재시작 필요:
-- `marketplace.json` (플러그인 등록 정보)
-- `agents/*.md` (에이전트 정의)
-- `commands/*.md` (커맨드 정의)
-- `.claude/settings.json` (설정 파일)
-
-### 재시작 방법
+다음 파일 변경 시 Claude Code 재시작 필요:
+- `marketplace.json`, `agents/*.md`, `commands/*.md`, `.claude/settings.json`
 
 ```bash
-# 방법 1: 터미널에서
-Ctrl+C  # Claude Code 종료
-claude  # 재시작
-
-# 방법 2: Claude Code 내에서
-/quit   # 종료 후 재실행
+Ctrl+C && claude  # 또는 /quit
 ```
 
 ---
@@ -203,40 +182,6 @@ claude  # 재시작
 ## 사용 예시
 
 ```bash
-# 특정 플러그인 체크
-/plugin-check vehicle-contamination-or
-/plugin-check claude-workflows
-
-# 전체 플러그인 체크
-/plugin-check
-```
-
----
-
-## 자동 수정 제안
-
-오류 발견 시 자동 수정 옵션 제공:
-
-### 1. 누락된 파일 marketplace.json에 추가
-```
-감지: agents/new-agent.md가 등록되지 않음
-제안: marketplace.json의 agents 배열에 "./agents/new-agent.md" 추가?
-```
-
-### 2. 삭제된 파일 marketplace.json에서 제거
-```
-감지: agents/old-agent.md가 존재하지 않음
-제안: marketplace.json에서 "./agents/old-agent.md" 제거?
-```
-
-### 3. Orphaned Cache 삭제
-```
-감지: paper-researcher.md가 캐시에만 존재 (실제 파일 없음)
-위치: ~/.claude/plugins/cache/megabytekim-agents/vehicle-contamination-or/1.1.0/agents/paper-researcher.md
-제안: 캐시 파일 삭제? (삭제 후 Claude Code 재시작 필요)
-```
-
-```bash
-# 실행 명령어
-rm ~/.claude/plugins/cache/megabytekim-agents/{plugin}/{version}/agents/{file}.md
+/plugin-check vehicle-contamination-or  # 특정 플러그인
+/plugin-check                            # 전체 플러그인
 ```
