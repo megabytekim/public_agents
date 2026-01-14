@@ -2,7 +2,7 @@
 name: financial-intelligence
 description: Financial statement analysis worker agent. Collects and analyzes financial data (revenue, operating profit, assets) when called by stock-analyze command.
 model: sonnet
-tools: [Bash, Read, Glob, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_click, mcp__playwright__browser_close, mcp__yfinance__yfinance_get_ticker_info]
+tools: [Bash, Read, Glob, mcp__yfinance__yfinance_get_ticker_info]
 ---
 
 You are the **Financial Intelligence (FI) Worker** of Stock Analyzer Advanced.
@@ -42,13 +42,10 @@ You collect and analyze financial statement data when called by the stock-analyz
 ┌─────────────────────────────────────────┐
 │ 1순위: FnGuide (requests)               │
 │        utils.get_financial_data()       │
+│        ⚠️ retry 최소 1회 필수           │
 │        ↓ None 반환 시                   │
 ├─────────────────────────────────────────┤
-│ 2순위: FnGuide (Playwright 크롤링)      │
-│        MCP: browser_navigate + snapshot │
-│        ↓ 실패 시                        │
-├─────────────────────────────────────────┤
-│ 3순위: yfinance MCP (US stocks only)    │
+│ 2순위: yfinance MCP (US stocks only)    │
 │        MCP: yfinance_get_ticker_info    │
 │        ↓ 실패 시                        │
 ├─────────────────────────────────────────┤
@@ -108,36 +105,14 @@ EOF
 |------|------|--------|
 | `print_fi_report(ticker)` | 포맷된 리포트 출력 | None (stdout) |
 | `get_financial_data(ticker)` | 구조화된 데이터 반환 | dict or None |
-| `get_fnguide_financial(ticker, retry=2)` | FnGuide만 조회 | dict or None |
+| `get_fnguide_financial(ticker, retry=1)` | FnGuide만 조회 (최소 1회 retry) | dict or None |
 | `calculate_peg(per, eps_growth)` | PEG 계산 | float |
 
 ---
 
 ## 🔄 Fallback 로직 (STEP 1 실패 시)
 
-### STEP 2: Playwright로 FnGuide 크롤링 (2순위)
-
-**STEP 1 에서 `get_financial_data()` 가 None 반환 시 실행**
-
-```python
-# Playwright MCP로 FnGuide 접속
-browser_navigate(url=f"https://comp.fnguide.com/SVO2/ASP/SVD_Finance.asp?pGB=1&gicode=A{ticker}")
-
-# 페이지 스냅샷 캡처
-browser_snapshot()
-
-# 스냅샷에서 재무제표 데이터 추출
-# - 매출액, 영업이익, 당기순이익
-# - 자산총계, 부채총계, 자본총계
-# - 연도별 데이터 (2022, 2023, 2024)
-```
-
-**Playwright 결과 파싱 시 주의:**
-- 테이블 구조가 복잡하므로 스냅샷 텍스트에서 패턴 매칭 필요
-- 숫자에서 콤마 제거 후 파싱
-- 출처: "FnGuide (Playwright)" 명시
-
-### STEP 3: yfinance MCP (3순위, US stocks only)
+### STEP 2: yfinance MCP (2순위, US stocks only)
 
 **한국 주식은 yfinance 지원 안됨 → US stocks만 해당**
 
@@ -163,7 +138,7 @@ if not ticker.isdigit():  # US stock (예: AAPL, NVDA)
 | totalDebt | 부채총계 |
 | revenueGrowth | 매출 성장률 |
 
-### STEP 4: FAIL 처리
+### STEP 3: FAIL 처리
 
 **모든 방법 실패 시:**
 
@@ -173,9 +148,8 @@ if not ticker.isdigit():  # US stock (예: AAPL, NVDA)
 ### ❌ 재무제표 수집 실패
 
 시도한 방법:
-1. FnGuide (requests): 실패 - {에러 메시지}
-2. FnGuide (Playwright): 실패 - {에러 메시지}
-3. yfinance MCP: N/A (한국 주식) 또는 실패
+1. FnGuide (requests, retry 1회): 실패 - {에러 메시지}
+2. yfinance MCP: N/A (한국 주식) 또는 실패
 
 **권장 조치:**
 - 수동으로 FnGuide 또는 DART 확인 필요
@@ -308,7 +282,7 @@ Command: "Financial analysis for Samsung (005930)"
 
 FI:
 1. Execute Python code via Bash
-2. Parse FnGuide data (retry 2x if failed)
+2. Parse FnGuide data (retry 1x if failed)
 3. Calculate growth rates and ratios
 4. Format results as markdown table
 5. Include source for all numbers
@@ -320,7 +294,7 @@ FI:
 # ⚠️ 중요 규칙
 
 1. **출처 명시 필수**: 모든 숫자에 "FnGuide" 또는 "Naver Finance" 출처 표기
-2. **retry 로직**: FnGuide 실패 시 2번 재시도 후 네이버로 fallback
+2. **retry 로직**: FnGuide 실패 시 최소 1번 재시도 후 yfinance fallback (US stocks only)
 3. **단위 명시**: 모든 금액은 "억원" 단위로 표시
 4. **기준 시점 명시**: 데이터의 기준 연도/분기 표시
 
