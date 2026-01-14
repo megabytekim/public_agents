@@ -114,6 +114,34 @@ rm ~/.claude/plugins/cache/megabytekim-agents/{plugin_name}/{version}/agents/{fi
 rm -rf ~/.claude/plugins/cache/megabytekim-agents/{plugin_name}/
 ```
 
+#### 3.4 캐시 누락 탐지 (Missing from Cache)
+
+> **중요**: 소스에 새 파일을 추가해도 캐시는 자동 업데이트되지 않습니다. `plugin update` 명령은 버전 번호만 비교하므로 파일 변경을 감지하지 못합니다.
+
+```python
+# 소스 파일 목록
+source_agents = Glob(f"{source_dir}/agents/*.md")
+
+for source_file in source_agents:
+    filename = os.path.basename(source_file)
+    cached_path = f"{plugin_cache_path}/{version}/agents/{filename}"
+
+    if not file_exists(cached_path):
+        errors.append(f"🔄 Missing from cache: {filename} (소스에만 존재, 재설치 필요)")
+```
+
+**Missing from Cache 해결:**
+```bash
+# 플러그인 재설치 (권장)
+claude plugin uninstall {plugin_name}@megabytekim-agents
+claude plugin install {plugin_name}@megabytekim-agents
+
+# 또는 수동 복사
+cp {source_dir}/agents/{file}.md ~/.claude/plugins/cache/megabytekim-agents/{plugin_name}/{version}/agents/
+```
+
+> ⚠️ **주의**: `claude plugin update`는 버전이 동일하면 "already at the latest version"을 반환합니다. 파일 변경 시에는 반드시 uninstall → install 순서로 재설치해야 합니다.
+
 ### Step 4: Git Status 체크
 
 ```bash
@@ -141,10 +169,15 @@ cd {base_path} && git status --porcelain
 ### ⚠️ 경고
 - Unregistered command: ./commands/yyy.md
 
-### 👻 Orphaned Cache
+### 👻 Orphaned Cache (캐시에만 존재)
 | 파일 | 조치 |
 |------|------|
 | paper-researcher.md | `rm ~/.claude/plugins/cache/.../agents/paper-researcher.md` |
+
+### 🔄 Missing from Cache (소스에만 존재)
+| 파일 | 조치 |
+|------|------|
+| financial-intelligence.md | `claude plugin uninstall && install` 또는 수동 복사 |
 
 ### 📝 Git Status
 M  plugins/xxx/agents/paper-processor.md
@@ -163,8 +196,9 @@ M  plugins/xxx/agents/paper-processor.md
 |---|-----------|------|
 | 1 | 파일 존재 | marketplace.json에 등록된 파일이 실제 존재하는지 |
 | 2 | 미등록 파일 | 실제 존재하지만 marketplace.json에 없는 파일 |
-| 3 | Orphaned Cache | 캐시에만 존재하고 실제 폴더에 없는 파일 |
-| 4 | Git 상태 | 커밋 안 된 변경사항 |
+| 3 | Orphaned Cache | 캐시에만 존재하고 실제 폴더에 없는 파일 (👻) |
+| 4 | Missing from Cache | 소스에 존재하지만 캐시에 없는 파일 (🔄) |
+| 5 | Git 상태 | 커밋 안 된 변경사항 |
 
 ---
 

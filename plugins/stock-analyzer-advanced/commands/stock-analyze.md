@@ -17,6 +17,18 @@ references:
 
 This command performs comprehensive stock analysis by **orchestrating MI/SI/TI workers directly from main context**.
 
+## Reference File (Golden Sample)
+
+> **IMPORTANT**: The `references` section above points to a **golden sample analysis file**.
+> When generating reports, use this file as a **format/structure reference**:
+> - 목차 구성 및 순서
+> - 테이블 포맷 및 컬럼 구성
+> - 섹션별 내용 깊이와 톤
+> - Cross-Check Matrix 형식
+> - Executive Summary 스타일
+>
+> 이 파일의 구조와 느낌을 유지하면서 새로운 종목 분석을 작성하세요.
+
 ## Architecture
 
 ```
@@ -240,7 +252,11 @@ After workers complete, main context performs strategic analysis using sector kn
 ### Phase 4: Report Generation & Append
 
 ```python
-# Generate report using template
+# 1. READ the golden sample for format reference
+Read("plugins/stock-analyzer-advanced/watchlist/stocks/034020/analysis.md")
+# Use this as structure/format guide (목차, 테이블, 톤)
+
+# 2. Generate report following the golden sample format
 # APPEND to existing file (never overwrite)
 # ⚠️ Use plugin-relative path!
 PLUGIN_DIR = "plugins/stock-analyzer-advanced"
