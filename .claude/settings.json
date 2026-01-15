@@ -13,7 +13,7 @@
       "WebFetch(domain:www.hankyung.com)",
       "Bash(wc:*)",
       "Bash(curl:*)",
-      "Bash(mkdir:*)",
+      "Bash(mkdir -p:*)",
       "Bash(python -m pytest:*)",
       "mcp__arxiv-mcp-server__search_papers",
       "Write(/plugins/vehicle-contamination-or/private/paper/**)",
