@@ -27,7 +27,7 @@ class TestGetPeerComparison:
 
         result = get_peer_comparison(
             ticker="377300",
-            peers=["035420"]
+            peers=["035420"]  # 네이버
         )
 
         assert result is not None
@@ -46,4 +46,11 @@ class TestGetSectorAverage:
         result = get_sector_average(tickers=["377300", "035420", "035720"])
 
         assert result is not None
-        assert "avg_per" in result or "per" in result
+        assert "per" in result  # 표준 키 이름으로 "per" 사용
+
+    def test_empty_tickers_returns_none(self):
+        """빈 티커 리스트는 None 반환"""
+        from utils.peer_comparison import get_sector_average
+
+        result = get_sector_average(tickers=[])
+        assert result is None
