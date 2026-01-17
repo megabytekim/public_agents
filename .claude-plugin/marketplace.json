@@ -176,6 +176,40 @@
         "./agents/financial-intelligence.md"
       ],
       "skills": []
+    },
+    {
+      "name": "tier2-analyzer",
+      "source": "./plugins/tier2-analyzer",
+      "description": "Tier 2 deep stock analysis extending stock-analyzer-advanced. Includes FI+ (quarterly financials + peer comparison), MI+ (management evaluation + DART filings), and SI+ (Telegram sentiment).",
+      "version": "1.0.0",
+      "author": {
+        "name": "megabytekim",
+        "url": "https://github.com/megabytekim"
+      },
+      "homepage": "https://github.com/megabytekim/public_agents",
+      "repository": "https://github.com/megabytekim/public_agents",
+      "license": "MIT",
+      "keywords": [
+        "stock-analysis",
+        "fundamental-analysis",
+        "peer-comparison",
+        "dart-api",
+        "telegram-sentiment",
+        "management-evaluation",
+        "korean-stock",
+        "tier2"
+      ],
+      "category": "finance",
+      "strict": false,
+      "commands": [
+        "./commands/deep-analyze.md"
+      ],
+      "agents": [
+        "./agents/fi-plus.md",
+        "./agents/mi-plus.md",
+        "./agents/si-plus.md"
+      ],
+      "skills": []
     }
   ]
 }
