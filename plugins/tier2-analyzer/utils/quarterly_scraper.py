@@ -3,10 +3,22 @@
 FnGuide에서 분기별 재무 데이터를 스크래핑합니다.
 """
 
+import logging
 import re
+
 import requests
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from typing import Optional
+
+
+logger = logging.getLogger(__name__)
+
+# 분기 재무 데이터 추출 대상 항목
+TARGET_METRICS = ["매출액", "영업이익", "당기순이익", "영업이익(발표기준)"]
+
+# 월 -> 분기 변환 맵 (결산월 기준)
+MONTH_TO_QUARTER = {3: 1, 6: 2, 9: 3, 12: 4}
 
 
 def get_fnguide_quarterly(ticker: str) -> Optional[dict]:
@@ -41,7 +53,8 @@ def get_fnguide_quarterly(ticker: str) -> Optional[dict]:
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-    except requests.RequestException:
+    except requests.RequestException as e:
+        logger.warning("FnGuide 요청 실패 (ticker=%s): %s", ticker, e)
         return None
 
     soup = BeautifulSoup(response.text, "html.parser")
@@ -119,9 +132,6 @@ def _parse_quarterly_income_statement(soup: BeautifulSoup) -> Optional[dict]:
     quarterly = {}
 
     for period_idx, period in enumerate(headers[1:], start=1):
-        if period_idx >= len(headers):
-            break
-
         # 기간 형식 변환 (예: "2024/12" -> "2024Q4")
         quarter_key = _convert_period_to_quarter_key(period)
         if not quarter_key:
@@ -142,7 +152,7 @@ def _parse_quarterly_income_statement(soup: BeautifulSoup) -> Optional[dict]:
     return quarterly if quarterly else None
 
 
-def _extract_headers(table) -> list:
+def _extract_headers(table: Optional[Tag]) -> list:
     """테이블 헤더 추출"""
     headers = []
     thead = table.find("thead")
@@ -178,7 +188,7 @@ def _extract_data_rows(table) -> dict:
         # 주요 항목만 추출
         if not is_bold:
             # 주요 항목이 아니어도 필요한 항목은 포함
-            if row_name not in ["매출액", "영업이익", "당기순이익", "영업이익(발표기준)"]:
+            if row_name not in TARGET_METRICS:
                 continue
 
         # 값 추출 (2번째 셀부터)
@@ -196,19 +206,42 @@ def _extract_data_rows(table) -> dict:
 
 
 def _parse_numeric_value(value_str: str) -> Optional[float]:
-    """숫자 값 파싱"""
+    """숫자 값 파싱
+
+    지원 형식:
+        - 일반 숫자: "1234", "1,234", "1234.56"
+        - 한국어 단위: "1,234.56억원", "100만원", "1.5억"
+    """
     if not value_str:
         return None
 
-    # 공백, 쉼표 제거
-    value_str = value_str.replace(",", "").replace(" ", "").strip()
+    # 공백 제거
+    value_str = value_str.strip()
 
     # 빈 값 또는 N/A 처리
     if not value_str or value_str in ["-", "N/A", "NA", ""]:
         return None
 
+    # 한국어 단위 처리
+    multiplier = 1.0
+    if "억" in value_str:
+        multiplier = 100_000_000  # 1억 = 100,000,000
+        value_str = value_str.replace("억", "")
+    elif "만" in value_str:
+        multiplier = 10_000  # 1만 = 10,000
+        value_str = value_str.replace("만", "")
+
+    # "원" 단위 제거
+    value_str = value_str.replace("원", "")
+
+    # 쉼표, 공백 제거
+    value_str = value_str.replace(",", "").replace(" ", "").strip()
+
+    if not value_str:
+        return None
+
     try:
-        return float(value_str)
+        return float(value_str) * multiplier
     except ValueError:
         return None
 
@@ -235,8 +268,7 @@ def _convert_period_to_quarter_key(period: str) -> Optional[str]:
     month = int(match.group(2))
 
     # 월 -> 분기 변환
-    quarter_map = {3: 1, 6: 2, 9: 3, 12: 4}
-    quarter = quarter_map.get(month)
+    quarter = MONTH_TO_QUARTER.get(month)
 
     if quarter:
         return f"{year}Q{quarter}"
