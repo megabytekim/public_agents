@@ -1,6 +1,6 @@
 """재무제표 스크래핑 유틸리티
 
-FnGuide 우선, 네이버 파이낸스 fallback
+FnGuide 우선 (div ID 기반 파싱)
 모든 숫자에 출처 명시
 """
 import re
@@ -8,6 +8,43 @@ import time
 from typing import Optional
 import requests
 from bs4 import BeautifulSoup
+
+# FnGuide 테이블 ID
+FNGUIDE_URL = "https://comp.fnguide.com/SVO2/ASP/SVD_Finance.asp"
+FNGUIDE_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "Referer": "https://comp.fnguide.com/",
+}
+
+# 테이블 ID → 재무제표 유형 매핑
+FNGUIDE_TABLE_IDS = {
+    "divSonikY": "income_annual",      # 연간 손익계산서
+    "divSonikQ": "income_quarterly",   # 분기 손익계산서
+    "divDaechaY": "balance_annual",    # 연간 재무상태표
+    "divCashY": "cash_flow_annual",    # 연간 현금흐름표
+}
+
+# 한글 → 영문 메트릭 매핑
+INCOME_METRICS = {
+    "매출액": "revenue",
+    "영업이익": "operating_profit",
+    "영업이익(발표기준)": "operating_profit",
+    "당기순이익": "net_income",
+}
+
+BALANCE_METRICS = {
+    "자산": "total_assets",
+    "유동자산": "current_assets",
+    "부채": "total_liabilities",
+    "유동부채": "current_liabilities",
+    "자본": "total_equity",
+}
+
+CASH_FLOW_METRICS = {
+    "영업활동으로인한현금흐름": "operating_cash_flow",
+    "투자활동으로인한현금흐름": "investing_cash_flow",
+    "재무활동으로인한현금흐름": "financing_cash_flow",
+}
 
 
 def get_fnguide_financial(ticker: str, retry: int = 2) -> Optional[dict]:
