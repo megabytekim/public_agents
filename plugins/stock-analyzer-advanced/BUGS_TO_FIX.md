@@ -1,71 +1,45 @@
 # Stock Analyzer Advanced - 버그 및 개선사항 목록
 
-> 2026-01-17 분석 기준
+> 2026-01-19 업데이트
 
 ---
 
 ## 🔴 Critical (시스템 장애)
 
-### 1. 에이전트 경로 하드코딩 오류
+### 1. pykrx KRX 데이터 접근 불가 (2025-12-27~)
 
-**파일**: `agents/financial-intelligence.md`, `agents/technical-intelligence.md`
+**근본 원인**: KRX(한국거래소)가 2025-12-27부터 **로그인 필수**로 정책 변경
+- AI 봇 무단 데이터 수집으로 서버 과부하 → 보안 강화 조치
+- pykrx의 KRX 기반 함수들 전면 작동 중단
 
-```markdown
-# 현재 (잘못됨)
-Line 69: cd /Users/newyork/public_agents/...
-Line 83: cd /Users/newyork/public_agents/...
+**GitHub 이슈**:
+- [#244](https://github.com/sharebook-kr/pykrx/issues/244) - KRX 로그인 필수화 공지
+- [#247](https://github.com/sharebook-kr/pykrx/issues/247) - get_market_ticker_list 에러
+- [#242](https://github.com/sharebook-kr/pykrx/issues/242) - 결과값 없음
+- [#236](https://github.com/sharebook-kr/pykrx/issues/236) - get_market_fundamental 0값 반환
 
-# 수정 필요
-cd /Users/michael/public_agents/...
-```
-
-**영향**: TI/FI 에이전트 Python 실행 시 경로 오류로 실패
-
-**수정 방법**:
-```bash
-# 일괄 수정
-sed -i '' 's|/Users/newyork/|/Users/michael/|g' agents/*.md
-```
-
----
-
-### 2. pykrx 다수 함수 Empty 반환
-
-**파일**: `utils/data_fetcher.py`
+**영향받는 함수** (`utils/data_fetcher.py`, 2026-01-19 테스트):
 
 | 함수 | 상태 | 비고 |
 |------|------|------|
-| `get_market_ohlcv_by_date()` | ✅ 정상 | OHLCV 조회 가능 |
-| `get_market_cap()` | ❌ Empty | 시가총액 조회 실패 |
-| `get_market_ticker_list()` | ❌ 0개 | 종목 리스트 조회 실패 |
-| `get_market_fundamental()` | ❌ Empty | PER/PBR 조회 실패 |
-| `get_market_cap_by_ticker()` | ❌ Error | 컬럼 매핑 에러 |
+| `get_market_ohlcv_by_date()` | ✅ 작동 | Naver 소스 |
+| `get_market_ticker_name()` | ✅ 작동 | |
+| `get_market_ticker_list()` | ❌ 불가 | KRX 의존 |
+| `get_market_fundamental()` | ❌ 불가 | KRX 의존 |
+| `get_market_cap()` | ❌ 불가 | KRX 의존 |
+| `get_market_trading_value_by_date()` | ❌ 불가 | KRX 의존 |
+| `get_shorting_status_by_date()` | ❌ 불가 | KRX 의존 |
 
-**영향**:
-- `get_fundamental()` → pykrx 실패 → Naver fallback 의존
-- `get_market_cap()` → 항상 None 반환 (fallback 없음)
-
-**수정 방법**: `data_fetcher.py`에 Naver fallback 추가
-```python
-def get_market_cap(ticker: str, date: Optional[str] = None) -> Optional[dict]:
-    # 1차: pykrx 시도
-    # ... (기존 코드)
-
-    # 2차: Naver fallback 추가
-    try:
-        from utils.web_scraper import get_naver_stock_info
-        info = get_naver_stock_info(ticker)
-        if info and info.get("market_cap"):
-            # 파싱 로직
-            pass
-    except:
-        pass
-    return None
-```
+**수정 완료** (2026-01-19):
+1. ✅ `get_market_cap()` - Naver fallback 추가
+2. ✅ `get_ticker_list()` - Naver fallback 추가
+3. ✅ `get_fundamental()` - Naver fallback 검증
+4. ⚠️ `get_investor_trading()` - deprecated.py로 이동 (대안 없음)
+5. ⚠️ `get_short_selling()` - deprecated.py로 이동 (대안 없음)
 
 ---
 
-### 3. Portfolio Intelligence 에이전트 미구현
+### 2. Portfolio Intelligence 에이전트 미구현
 
 **파일**: `agents/portfolio-intelligence.md` (존재하지 않음)
 
@@ -82,7 +56,7 @@ def get_market_cap(ticker: str, date: Optional[str] = None) -> Optional[dict]:
 
 ## 🟠 High (주요 기능 결함)
 
-### 4. web_scraper.py 파싱 버그 가능성
+### 3. web_scraper.py 파싱 버그 가능성
 
 **파일**: `utils/web_scraper.py:111-116`
 
@@ -103,7 +77,7 @@ elif "외국인소진율" in label:  # 가장 구체적인 것 먼저
 
 ---
 
-### 5. 분기 재무 데이터 미지원
+### 4. 분기 재무 데이터 미지원
 
 **파일**: `utils/financial_scraper.py:254`
 
@@ -118,7 +92,7 @@ match = re.search(r'(\d{4})/\d{2}', text)  # "2024/12" 형식
 
 ---
 
-### 6. US 주식 지원 미비
+### 5. US 주식 지원 미비
 
 **파일**: 전체
 
@@ -135,7 +109,7 @@ match = re.search(r'(\d{4})/\d{2}', text)  # "2024/12" 형식
 
 ## 🟡 Medium (품질 저하)
 
-### 7. 센티먼트 제목만 수집
+### 6. 센티먼트 제목만 수집
 
 **파일**: `utils/web_scraper.py:173-220`
 
@@ -153,7 +127,7 @@ match = re.search(r'(\d{4})/\d{2}', text)  # "2024/12" 형식
 
 ---
 
-### 8. 뉴스 요약 없음
+### 7. 뉴스 요약 없음
 
 **파일**: `utils/web_scraper.py:124-170`
 
@@ -168,7 +142,7 @@ match = re.search(r'(\d{4})/\d{2}', text)  # "2024/12" 형식
 
 ---
 
-### 9. 캐싱 없음
+### 8. 캐싱 없음
 
 **파일**: 전체 utils
 
@@ -195,7 +169,7 @@ def get_cached(key: str) -> Optional[dict]:
 
 ---
 
-### 10. 배치 처리 없음
+### 9. 배치 처리 없음
 
 **파일**: `commands/stock-analyze.md`
 
@@ -205,7 +179,7 @@ def get_cached(key: str) -> Optional[dict]:
 
 ---
 
-### 11. 에러 복구 미정의
+### 10. 에러 복구 미정의
 
 **파일**: `commands/stock-analyze.md`
 
@@ -220,7 +194,7 @@ def get_cached(key: str) -> Optional[dict]:
 
 ---
 
-### 12. 타임스탬프 동기화 없음
+### 11. 타임스탬프 동기화 없음
 
 **파일**: `utils/ti_analyzer.py`
 
@@ -238,7 +212,7 @@ df_year = get_ohlcv(ticker, days=252)       # 시점 B
 
 ## 🟢 Low (개선 사항)
 
-### 13. 테스트 커버리지 부족
+### 12. 테스트 커버리지 부족
 
 | 모듈 | 테스트 상태 |
 |------|------------|
@@ -252,7 +226,7 @@ df_year = get_ohlcv(ticker, days=252)       # 시점 B
 
 ---
 
-### 14. 출력 경로 불일치
+### 13. 출력 경로 불일치
 
 **파일**: `commands/stock-analyze.md` vs 실제 파일
 
@@ -265,7 +239,7 @@ df_year = get_ohlcv(ticker, days=252)       # 시점 B
 
 ---
 
-### 15. 기술지표 Edge Case 미처리
+### 14. 기술지표 Edge Case 미처리
 
 **파일**: `utils/indicators.py`
 
@@ -287,7 +261,6 @@ if avg_loss == 0:
 
 | 순위 | 항목 | 난이도 | 영향도 |
 |------|------|--------|--------|
-| P0 | 경로 하드코딩 수정 | 낮음 | 높음 |
 | P0 | pykrx fallback 추가 | 중간 | 높음 |
 | P1 | web_scraper 파싱 개선 | 낮음 | 중간 |
 | P1 | US 주식 yfinance 연동 | 높음 | 높음 |
