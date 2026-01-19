@@ -488,44 +488,71 @@ def print_fi_report(ticker: str) -> None:
         print(f"재무제표 데이터 조회 실패: {ticker}")
         return
 
+    period_labels = data.get("period_labels", {})
+
     print("=" * 60)
     print(f"FI Report: {data.get('name')} ({data.get('ticker')})")
     print(f"데이터 출처: {data.get('source')}")
     print(f"기준 시점: {data.get('period')}")
     print("=" * 60)
 
-    # 연간 추이
+    # 연간 손익 추이
     annual = data.get("annual", {})
     if annual:
         print("\n[1. 연간 재무 추이 (억원)]")
-        print(f"{'연도':<10} {'매출액':>15} {'영업이익':>15} {'순이익':>15}")
-        print("-" * 55)
+        print(f"{'연도':<15} {'매출액':>15} {'영업이익':>15} {'순이익':>15}")
+        print("-" * 60)
         for year in sorted(annual.keys()):
             d = annual[year]
-            rev = f"{d.get('revenue', 0):,}" if d.get('revenue') else "-"
-            op = f"{d.get('operating_profit', 0):,}" if d.get('operating_profit') else "-"
-            ni = f"{d.get('net_income', 0):,}" if d.get('net_income') else "-"
-            print(f"{year:<10} {rev:>15} {op:>15} {ni:>15}")
+            # 누적 라벨 처리
+            year_label = f"{year}({period_labels[year]})" if year in period_labels else year
+
+            rev = f"{d.get('revenue', 0):,.0f}" if d.get('revenue') else "-"
+            op = f"{d.get('operating_profit', 0):,.0f}" if d.get('operating_profit') else "-"
+            ni = f"{d.get('net_income', 0):,.0f}" if d.get('net_income') else "-"
+            print(f"{year_label:<15} {rev:>15} {op:>15} {ni:>15}")
 
     # 성장률
     growth = data.get("growth", {})
     if growth:
         print("\n[2. 성장률 (YoY)]")
-        if "revenue_yoy" in growth:
+        comparison = growth.get("comparison")
+        if comparison:
+            print(f"비교 기준: {comparison}")
+        if growth.get("revenue_yoy") is not None:
             print(f"매출 성장률: {growth['revenue_yoy']:+.1f}%")
-        if "operating_profit_yoy" in growth:
+        if growth.get("operating_profit_yoy") is not None:
             print(f"영업이익 성장률: {growth['operating_profit_yoy']:+.1f}%")
 
-    # 최신 재무상태
-    latest = data.get("latest", {})
-    if latest.get("total_assets"):
-        print("\n[3. 재무상태 (최신)]")
-        if latest.get("total_assets"):
-            print(f"자산총계: {latest['total_assets']:,}억원")
-        if latest.get("total_liabilities"):
-            print(f"부채총계: {latest['total_liabilities']:,}억원")
-        if latest.get("total_equity"):
-            print(f"자본총계: {latest['total_equity']:,}억원")
+    # 재무비율
+    ratios = data.get("ratios", {})
+    if ratios:
+        print("\n[3. 재무비율]")
+        if ratios.get("debt_ratio") is not None:
+            status = "안정" if ratios["debt_ratio"] < 100 else "주의" if ratios["debt_ratio"] < 200 else "위험"
+            print(f"부채비율: {ratios['debt_ratio']:.1f}% ({status})")
+        if ratios.get("current_ratio") is not None:
+            status = "안정" if ratios["current_ratio"] > 150 else "보통" if ratios["current_ratio"] > 100 else "주의"
+            print(f"유동비율: {ratios['current_ratio']:.1f}% ({status})")
+        if ratios.get("roe") is not None:
+            status = "우수" if ratios["roe"] > 15 else "보통" if ratios["roe"] > 5 else "부진"
+            print(f"ROE: {ratios['roe']:.1f}% ({status})")
+        if ratios.get("roa") is not None:
+            status = "우수" if ratios["roa"] > 5 else "보통" if ratios["roa"] > 2 else "부진"
+            print(f"ROA: {ratios['roa']:.1f}% ({status})")
+
+    # 현금흐름
+    cash_flow = data.get("cash_flow", {})
+    if cash_flow:
+        print("\n[4. 현금흐름 (억원)]")
+        for year in sorted(cash_flow.keys(), reverse=True)[:2]:
+            cf = cash_flow[year]
+            year_label = f"{year}({period_labels[year]})" if year in period_labels else year
+            ocf = cf.get("operating_cash_flow")
+            fcf = cf.get("fcf")
+            ocf_str = f"{ocf:,.0f}" if ocf else "-"
+            fcf_str = f"{fcf:,.0f}" if fcf else "-"
+            print(f"{year_label}: 영업CF {ocf_str} / FCF {fcf_str}")
 
     print("\n" + "=" * 60)
     print(f"출처: {data.get('source')}")
