@@ -1,6 +1,12 @@
 """Tier 2 Utils Package"""
 
-from utils.quarterly_scraper import get_fnguide_quarterly, get_fnguide_full_financials
+from utils.quarterly_scraper import (
+    get_fnguide_quarterly,
+    get_fnguide_annual_income,
+    get_fnguide_annual_balance_sheet,
+    get_fnguide_annual_cash_flow,
+    get_fnguide_full_financials,
+)
 from utils.peer_comparison import (
     get_peer_comparison,
     get_sector_average,
@@ -8,6 +14,9 @@ from utils.peer_comparison import (
 
 __all__ = [
     'get_fnguide_quarterly',
+    'get_fnguide_annual_income',
+    'get_fnguide_annual_balance_sheet',
+    'get_fnguide_annual_cash_flow',
     'get_fnguide_full_financials',
     'get_peer_comparison',
     'get_sector_average',

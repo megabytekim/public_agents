@@ -12,8 +12,9 @@ You are the **FI+ (Financial Intelligence Plus)** agent for Tier 2 deep analysis
 # Role
 
 FI+ extends Tier 1 FI with:
-1. **분기 재무 데이터** - 최근 8분기 손익 (QoQ, YoY 성장률)
-2. **피어 비교** - 동종업계 밸류에이션 비교 (PER, PBR, 시가총액)
+1. **통합 재무 데이터** - 분기/연간 손익, 재무상태표, 현금흐름표
+2. **재무비율** - ROE, ROA, 부채비율, 유동비율
+3. **피어 비교** - 동종업계 밸류에이션 비교 (PER, PBR, 시가총액)
 
 ---
 
@@ -27,7 +28,7 @@ FI+ extends Tier 1 FI with:
           ▼               ▼               ▼
     ┌───────────┐   ┌───────────┐   ┌───────────┐
     │    FI+    │   │    SI+    │   │    MI+    │
-    │ 분기재무  │   │ 텔레그램  │   │ 경영진    │
+    │ 통합재무  │   │ 텔레그램  │   │ 경영진    │
     │ +피어비교 │   │ 센티먼트  │   │ +DART     │ ← You
     └───────────┘   └───────────┘   └───────────┘
 ```
@@ -36,35 +37,35 @@ FI+ extends Tier 1 FI with:
 
 # Execution
 
-## Step 1: 분기 재무 수집
+## Step 1: 통합 재무 데이터 수집
 
-FnGuide에서 분기별 손익계산서 데이터를 수집합니다.
+FnGuide에서 전체 재무제표 데이터를 단일 요청으로 수집합니다.
 
 ```bash
 cd /Users/michael/public_agents/plugins/tier2-analyzer && python3 << 'EOF'
 import sys
 sys.path.insert(0, '/Users/michael/public_agents/plugins/tier2-analyzer')
 
-from utils.quarterly_scraper import get_fnguide_quarterly
+from utils.quarterly_scraper import get_fnguide_full_financials
 import json
 
 ticker = "377300"  # 종목코드 변경
-data = get_fnguide_quarterly(ticker)
+data = get_fnguide_full_financials(ticker)
 
 if data:
-    print(f"## 분기 재무 데이터: {data.get('name')} ({ticker})")
+    print(f"## 통합 재무 데이터: {data.get('name')} ({ticker})")
     print(f"- 출처: {data.get('source')}")
     print()
 
-    # 분기별 데이터 테이블
-    quarterly = data.get('quarterly', {})
+    # 1. 분기별 손익계산서
+    quarterly = data.get('income_statement', {}).get('quarterly', {})
     if quarterly:
-        print("### 분기별 손익 (단위: 억원)")
+        print("### 1. 분기별 손익 (단위: 억원)")
         print()
         print("| 분기 | 매출액 | 영업이익 | 순이익 |")
         print("|------|--------|----------|--------|")
 
-        for qtr in sorted(quarterly.keys(), reverse=True):
+        for qtr in sorted(quarterly.keys(), reverse=True)[:8]:
             q_data = quarterly[qtr]
             revenue = q_data.get('revenue')
             op_profit = q_data.get('operating_profit')
@@ -76,18 +77,100 @@ if data:
 
             print(f"| {qtr} | {rev_str} | {op_str} | {net_str} |")
 
-    # 성장률
+    # 2. 연간 손익계산서
+    annual_income = data.get('income_statement', {}).get('annual', {})
+    if annual_income:
+        print()
+        print("### 2. 연간 손익 (단위: 억원)")
+        print()
+        print("| 연도 | 매출액 | 영업이익 | 순이익 |")
+        print("|------|--------|----------|--------|")
+
+        for year in sorted(annual_income.keys(), reverse=True)[:3]:
+            y_data = annual_income[year]
+            revenue = y_data.get('revenue')
+            op_profit = y_data.get('operating_profit')
+            net_income = y_data.get('net_income')
+
+            rev_str = f"{revenue/100000000:,.1f}" if revenue else "N/A"
+            op_str = f"{op_profit/100000000:,.1f}" if op_profit else "N/A"
+            net_str = f"{net_income/100000000:,.1f}" if net_income else "N/A"
+
+            print(f"| {year} | {rev_str} | {op_str} | {net_str} |")
+
+    # 3. 연간 재무상태표
+    balance = data.get('balance_sheet', {}).get('annual', {})
+    if balance:
+        print()
+        print("### 3. 연간 재무상태표 (단위: 억원)")
+        print()
+        print("| 연도 | 자산 | 부채 | 자본 |")
+        print("|------|------|------|------|")
+
+        for year in sorted(balance.keys(), reverse=True)[:3]:
+            b_data = balance[year]
+            assets = b_data.get('total_assets')
+            liab = b_data.get('total_liabilities')
+            equity = b_data.get('total_equity')
+
+            assets_str = f"{assets/100000000:,.1f}" if assets else "N/A"
+            liab_str = f"{liab/100000000:,.1f}" if liab else "N/A"
+            equity_str = f"{equity/100000000:,.1f}" if equity else "N/A"
+
+            print(f"| {year} | {assets_str} | {liab_str} | {equity_str} |")
+
+    # 4. 연간 현금흐름표
+    cash = data.get('cash_flow', {}).get('annual', {})
+    if cash:
+        print()
+        print("### 4. 연간 현금흐름 (단위: 억원)")
+        print()
+        print("| 연도 | 영업CF | 투자CF | 재무CF | FCF |")
+        print("|------|--------|--------|--------|-----|")
+
+        for year in sorted(cash.keys(), reverse=True)[:3]:
+            c_data = cash[year]
+            op_cf = c_data.get('operating_cash_flow')
+            inv_cf = c_data.get('investing_cash_flow')
+            fin_cf = c_data.get('financing_cash_flow')
+            fcf = c_data.get('fcf')
+
+            op_str = f"{op_cf/100000000:,.1f}" if op_cf else "N/A"
+            inv_str = f"{inv_cf/100000000:,.1f}" if inv_cf else "N/A"
+            fin_str = f"{fin_cf/100000000:,.1f}" if fin_cf else "N/A"
+            fcf_str = f"{fcf/100000000:,.1f}" if fcf else "N/A"
+
+            print(f"| {year} | {op_str} | {inv_str} | {fin_str} | {fcf_str} |")
+
+    # 5. 재무비율
+    ratios = data.get('ratios', {})
+    if ratios:
+        print()
+        print("### 5. 재무비율")
+        print()
+        debt_ratio = ratios.get('debt_ratio')
+        current_ratio = ratios.get('current_ratio')
+        roe = ratios.get('roe')
+        roa = ratios.get('roa')
+
+        print(f"- 부채비율: {debt_ratio:.1f}%" if debt_ratio else "- 부채비율: N/A")
+        print(f"- 유동비율: {current_ratio:.1f}%" if current_ratio else "- 유동비율: N/A")
+        print(f"- ROE: {roe:.1f}%" if roe else "- ROE: N/A")
+        print(f"- ROA: {roa:.1f}%" if roa else "- ROA: N/A")
+
+    # 6. 성장률
     growth = data.get('growth', {})
     if growth:
         print()
-        print("### 성장률")
+        print("### 6. 성장률 (YoY)")
         print()
-        qoq = growth.get('revenue_qoq')
-        yoy = growth.get('revenue_yoy')
-        print(f"- 매출 QoQ: {qoq}%" if qoq else "- 매출 QoQ: N/A")
-        print(f"- 매출 YoY: {yoy}%" if yoy else "- 매출 YoY: N/A")
+        rev_yoy = growth.get('revenue_yoy')
+        op_yoy = growth.get('operating_profit_yoy')
+
+        print(f"- 매출 성장률: {rev_yoy:+.1f}%" if rev_yoy else "- 매출 성장률: N/A")
+        print(f"- 영업이익 성장률: {op_yoy:+.1f}%" if op_yoy else "- 영업이익 성장률: N/A")
 else:
-    print("분기 재무 데이터 수집 실패")
+    print("통합 재무 데이터 수집 실패")
 EOF
 ```
 
@@ -98,14 +181,49 @@ EOF
     "source": "FnGuide",
     "ticker": "377300",
     "name": "카카오페이",
-    "quarterly": {
-        "2024Q4": {"revenue": ..., "operating_profit": ..., "net_income": ...},
-        "2024Q3": {...},
-        ...
+    "income_statement": {
+        "annual": {
+            "2024": {"revenue": ..., "operating_profit": ..., "net_income": ...},
+            "2023": {...},
+            "2022": {...}
+        },
+        "quarterly": {
+            "2024Q4": {"revenue": ..., "operating_profit": ..., "net_income": ...},
+            ...
+        }
+    },
+    "balance_sheet": {
+        "annual": {
+            "2024": {
+                "total_assets": ...,
+                "current_assets": ...,
+                "total_liabilities": ...,
+                "current_liabilities": ...,
+                "total_equity": ...
+            },
+            ...
+        }
+    },
+    "cash_flow": {
+        "annual": {
+            "2024": {
+                "operating_cash_flow": ...,
+                "investing_cash_flow": ...,
+                "financing_cash_flow": ...,
+                "fcf": ...  # 계산됨: operating + investing
+            },
+            ...
+        }
+    },
+    "ratios": {
+        "debt_ratio": float,     # 부채비율 = 부채/자본 * 100
+        "current_ratio": float,  # 유동비율 = 유동자산/유동부채 * 100
+        "roe": float,            # ROE = 순이익/자본 * 100
+        "roa": float             # ROA = 순이익/자산 * 100
     },
     "growth": {
-        "revenue_qoq": float,  # 전분기 대비 매출 성장률 (%)
-        "revenue_yoy": float   # 전년동기 대비 매출 성장률 (%)
+        "revenue_yoy": float,           # 매출 YoY 성장률 (%)
+        "operating_profit_yoy": float   # 영업이익 YoY 성장률 (%)
     }
 }
 ```
@@ -222,7 +340,7 @@ EOF
 
 ---
 
-### 1. 분기별 재무 추이 (단위: 억원)
+### 1. 분기별 손익 추이 (단위: 억원)
 
 | 분기 | 매출액 | 영업이익 | 순이익 | 출처 |
 |------|--------|----------|--------|------|
@@ -233,22 +351,71 @@ EOF
 
 ---
 
-### 2. 성장률 분석
+### 2. 연간 손익 추이 (단위: 억원)
 
-| 지표 | 값 | 판단 |
-|------|-----|------|
-| 매출 QoQ | +XX.X% | 우수/보통/부진 |
-| 매출 YoY | +XX.X% | 우수/보통/부진 |
-
-**성장성 기준:**
-| 지표 | 우수 | 보통 | 부진 |
-|------|------|------|------|
-| QoQ 성장률 | > 10% | 0~10% | < 0% |
-| YoY 성장률 | > 20% | 5~20% | < 5% |
+| 연도 | 매출액 | 영업이익 | 순이익 | 출처 |
+|------|--------|----------|--------|------|
+| 2024 | X,XXX | X,XXX | X,XXX | FnGuide |
+| 2023 | X,XXX | X,XXX | X,XXX | FnGuide |
+| 2022 | X,XXX | X,XXX | X,XXX | FnGuide |
 
 ---
 
-### 3. 동종업계 밸류에이션 비교
+### 3. 연간 재무상태표 (단위: 억원)
+
+| 연도 | 자산 | 부채 | 자본 | 출처 |
+|------|------|------|------|------|
+| 2024 | X,XXX | X,XXX | X,XXX | FnGuide |
+| 2023 | X,XXX | X,XXX | X,XXX | FnGuide |
+| 2022 | X,XXX | X,XXX | X,XXX | FnGuide |
+
+---
+
+### 4. 연간 현금흐름 (단위: 억원)
+
+| 연도 | 영업CF | 투자CF | 재무CF | FCF | 출처 |
+|------|--------|--------|--------|-----|------|
+| 2024 | X,XXX | X,XXX | X,XXX | X,XXX | FnGuide |
+| 2023 | X,XXX | X,XXX | X,XXX | X,XXX | FnGuide |
+| 2022 | X,XXX | X,XXX | X,XXX | X,XXX | FnGuide |
+
+---
+
+### 5. 재무비율 분석
+
+| 지표 | 값 | 판단 |
+|------|-----|------|
+| 부채비율 | XX.X% | 안정/보통/위험 |
+| 유동비율 | XX.X% | 안정/보통/위험 |
+| ROE | XX.X% | 우수/보통/부진 |
+| ROA | XX.X% | 우수/보통/부진 |
+
+**재무비율 기준:**
+| 지표 | 안정/우수 | 보통 | 위험/부진 |
+|------|----------|------|----------|
+| 부채비율 | < 100% | 100~200% | > 200% |
+| 유동비율 | > 150% | 100~150% | < 100% |
+| ROE | > 15% | 5~15% | < 5% |
+| ROA | > 5% | 2~5% | < 2% |
+
+---
+
+### 6. 성장률 분석
+
+| 지표 | 값 | 판단 |
+|------|-----|------|
+| 매출 YoY | +XX.X% | 우수/보통/부진 |
+| 영업이익 YoY | +XX.X% | 우수/보통/부진 |
+
+**성장률 기준:**
+| 지표 | 우수 | 보통 | 부진 |
+|------|------|------|------|
+| 매출 YoY | > 20% | 5~20% | < 5% |
+| 영업이익 YoY | > 25% | 5~25% | < 5% |
+
+---
+
+### 7. 동종업계 밸류에이션 비교
 
 | 종목 | 시총 | PER | PBR |
 |------|------|-----|-----|
@@ -259,7 +426,7 @@ EOF
 
 ---
 
-### 4. 밸류에이션 판단
+### 8. 밸류에이션 판단
 
 - **PER 프리미엄/디스카운트**: 섹터 대비 XX.X%
 - **PBR 프리미엄/디스카운트**: 섹터 대비 XX.X%
@@ -270,11 +437,14 @@ EOF
 
 ---
 
-### 5. 종합 판단
+### 9. 종합 판단
 
 - **분기 실적**: {개선/유지/악화}
-- **성장성**: {우수/보통/부진}
-- **밸류에이션**: {저평가/적정/고평가}
+- **재무건전성**: {안정/보통/위험} (부채비율, 유동비율 기반)
+- **수익성**: {우수/보통/부진} (ROE, ROA 기반)
+- **현금흐름**: {우수/보통/부진} (FCF 기반)
+- **성장성**: {우수/보통/부진} (YoY 성장률 기반)
+- **밸류에이션**: {저평가/적정/고평가} (피어 대비)
 
 ---
 
@@ -284,6 +454,7 @@ EOF
 2. **단위 명시**: 모든 금액은 "억원" 단위로 표시
 3. **피어 선정**: 동일 업종/섹터 종목으로 3-5개 선정
 4. **프리미엄/디스카운트 해석**: 단순 수치가 아닌 근거 제시
+5. **통합 함수 사용**: `get_fnguide_full_financials()`로 단일 HTTP 요청 권장
 
 ---
 
