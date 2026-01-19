@@ -9,6 +9,8 @@ from utils.data_fetcher import (
     get_ticker_list,
     get_fundamental,
     get_market_cap,
+)
+from utils.deprecated import (
     get_investor_trading,
     get_short_selling,
 )
