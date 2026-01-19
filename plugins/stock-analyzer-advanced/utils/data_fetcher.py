@@ -83,7 +83,7 @@ def get_ticker_list(
     market: str = "KOSPI"
 ) -> Optional[list]:
     """
-    전체 종목 리스트 조회
+    전체 종목 리스트 조회 (pykrx 우선, 실패 시 Naver fallback)
 
     Args:
         date: 조회일 YYYYMMDD (기본 오늘)
@@ -92,18 +92,25 @@ def get_ticker_list(
     Returns:
         ['005930', '000660', ...] or None (실패 시)
     """
+    # 1차: pykrx
     try:
         if date is None:
             date = datetime.now().strftime("%Y%m%d")
-
         tickers = stock.get_market_ticker_list(date, market=market)
-
-        if not tickers:
-            return None
-
-        return list(tickers)
+        if tickers:
+            return list(tickers)
     except Exception:
-        return None
+        pass
+
+    # 2차: Naver fallback
+    try:
+        from utils.web_scraper import get_naver_stock_list
+        stocks = get_naver_stock_list(market)
+        if stocks:
+            return [s["code"] for s in stocks]
+    except Exception:
+        pass
+    return None
 
 
 def get_fundamental(

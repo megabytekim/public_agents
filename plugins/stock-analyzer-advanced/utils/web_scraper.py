@@ -266,6 +266,45 @@ def _parse_float(text: str) -> float:
         return 0.0
 
 
+def get_naver_stock_list(market: str = "KOSPI") -> Optional[list]:
+    """
+    네이버 금융에서 종목 리스트 조회
+
+    Args:
+        market: "KOSPI" 또는 "KOSDAQ"
+
+    Returns:
+        [{"code": "005930", "name": "삼성전자"}, ...] or None
+    """
+    market_code = "0" if market == "KOSPI" else "1"
+    url = f"https://finance.naver.com/sise/sise_market_sum.naver?sosok={market_code}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
+    try:
+        all_stocks = []
+        for page in range(1, 50):  # 최대 50페이지
+            resp = requests.get(f"{url}&page={page}", headers=headers, timeout=10)
+            soup = BeautifulSoup(resp.text, "html.parser")
+            rows = soup.select("table.type_2 tr")
+            page_stocks = []
+
+            for row in rows:
+                link = row.select_one("a.tltle")
+                if link:
+                    href = link.get("href", "")
+                    code = href.split("code=")[-1] if "code=" in href else ""
+                    if code and len(code) == 6:
+                        page_stocks.append({"code": code, "name": link.get_text(strip=True)})
+
+            if not page_stocks:
+                break
+            all_stocks.extend(page_stocks)
+
+        return all_stocks if all_stocks else None
+    except Exception:
+        return None
+
+
 def _parse_market_cap(text: str) -> int:
     """
     시가총액 텍스트를 억 단위 숫자로 변환

@@ -123,11 +123,14 @@ class TestGetTickerList:
 
         mock_pykrx_stock.get_market_ticker_list.assert_called()
 
-    def test_get_ticker_list_exception(self, mock_pykrx_stock):
-        """예외 발생 시 None 반환"""
+    def test_get_ticker_list_exception_uses_fallback(self, mock_pykrx_stock, mocker):
+        """예외 발생 시 Naver fallback 사용 (fallback도 실패하면 None)"""
         from utils.data_fetcher import get_ticker_list
 
         mock_pykrx_stock.get_market_ticker_list.side_effect = Exception("Error")
+        # Naver fallback도 실패하도록 설정
+        mock_naver = mocker.patch('utils.web_scraper.get_naver_stock_list')
+        mock_naver.return_value = None
 
         result = get_ticker_list()
 
@@ -276,3 +279,70 @@ def test_get_market_cap_with_fallback():
 
 # NOTE: get_investor_trading() and get_short_selling() moved to utils/deprecated.py
 # Tests for deprecated functions are in test_deprecated.py
+
+
+class TestGetTickerListWithFallback:
+    """get_ticker_list() Naver fallback 테스트"""
+
+    def test_get_ticker_list_pykrx_fails_uses_naver_fallback(self, mock_pykrx_stock, mocker):
+        """pykrx 실패 시 Naver fallback 사용"""
+        from utils.data_fetcher import get_ticker_list
+
+        # pykrx 실패하도록 설정
+        mock_pykrx_stock.get_market_ticker_list.side_effect = Exception("KRX login required")
+
+        # Naver fallback mock
+        mock_naver = mocker.patch('utils.web_scraper.get_naver_stock_list')
+        mock_naver.return_value = [
+            {"code": "005930", "name": "삼성전자"},
+            {"code": "000660", "name": "SK하이닉스"},
+            {"code": "035420", "name": "NAVER"},
+        ]
+
+        result = get_ticker_list(market="KOSPI")
+
+        assert result is not None
+        assert isinstance(result, list)
+        assert "005930" in result
+        assert "000660" in result
+        assert len(result) == 3
+
+    def test_get_ticker_list_pykrx_empty_uses_naver_fallback(self, mock_pykrx_stock, mocker):
+        """pykrx가 빈 리스트 반환 시 Naver fallback 사용"""
+        from utils.data_fetcher import get_ticker_list
+
+        # pykrx가 빈 리스트 반환
+        mock_pykrx_stock.get_market_ticker_list.return_value = []
+
+        # Naver fallback mock
+        mock_naver = mocker.patch('utils.web_scraper.get_naver_stock_list')
+        mock_naver.return_value = [
+            {"code": "005930", "name": "삼성전자"},
+        ]
+
+        result = get_ticker_list(market="KOSPI")
+
+        assert result is not None
+        assert "005930" in result
+
+    def test_get_ticker_list_both_fail_returns_none(self, mock_pykrx_stock, mocker):
+        """pykrx와 Naver 모두 실패 시 None 반환"""
+        from utils.data_fetcher import get_ticker_list
+
+        mock_pykrx_stock.get_market_ticker_list.side_effect = Exception("Error")
+        mock_naver = mocker.patch('utils.web_scraper.get_naver_stock_list')
+        mock_naver.return_value = None
+
+        result = get_ticker_list(market="KOSPI")
+
+        assert result is None
+
+
+def test_get_ticker_list_with_fallback():
+    """get_ticker_list가 pykrx 실패 시 Naver fallback 사용 (통합 테스트)"""
+    from utils.data_fetcher import get_ticker_list
+    result = get_ticker_list(market="KOSPI")
+
+    assert result is not None
+    assert len(result) > 100  # KOSPI has many stocks
+    assert "005930" in result  # Samsung should be in the list
