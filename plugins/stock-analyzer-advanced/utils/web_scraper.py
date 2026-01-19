@@ -27,7 +27,7 @@ def get_naver_stock_info(ticker: str) -> Optional[dict]:
             "open": 7790,
             "high": 7850,
             "low": 7490,
-            "market_cap": "XXX억",
+            "market_cap": 89014,  # 억 단위 정수 (8조 9,014억 = 89014)
             "per": 12.5,
             "pbr": 1.04,
             "foreign_ratio": 3.24
@@ -107,7 +107,7 @@ def get_naver_stock_info(ticker: str) -> Optional[dict]:
                     value_text = value_elem.text.strip()
 
                     if label == "시가총액":  # 정확 매칭 (시가총액순위와 구분)
-                        result["market_cap"] = value_text
+                        result["market_cap"] = _parse_market_cap(value_text)
                     elif "PER" in label:
                         result["per"] = _parse_float(value_text)
                     elif "PBR" in label:
@@ -264,3 +264,47 @@ def _parse_float(text: str) -> float:
         return float(clean) if clean else 0.0
     except:
         return 0.0
+
+
+def _parse_market_cap(text: str) -> int:
+    """
+    시가총액 텍스트를 억 단위 숫자로 변환
+
+    Args:
+        text: "8조 9,014억", "883조\n8,019", "500억" 등의 형식
+
+    Returns:
+        억 단위 정수 (예: 89014, 8838019, 500)
+    """
+    if not text:
+        return 0
+
+    try:
+        # 공백, 줄바꿈, 탭 정리
+        clean = re.sub(r'[\s]+', ' ', text).strip()
+
+        if '조' in clean:
+            # "8조 9,014" 또는 "883조 8,019" 형식 처리
+            # 조 앞의 숫자와 조 뒤의 숫자를 추출
+            jo_match = re.search(r'(\d+)\s*조', clean)
+            eok_match = re.search(r'조\s*([\d,]+)', clean)
+
+            jo = int(jo_match.group(1)) if jo_match else 0
+            eok = 0
+            if eok_match:
+                eok_str = eok_match.group(1).replace(',', '')
+                eok = int(eok_str) if eok_str else 0
+
+            return jo * 10000 + eok  # 억 단위로 변환
+        elif '억' in clean:
+            # "9,014억" 형식 처리
+            eok_match = re.search(r'([\d,]+)\s*억', clean)
+            if eok_match:
+                return int(eok_match.group(1).replace(',', ''))
+            return 0
+        else:
+            # 숫자만 있는 경우
+            digits = re.sub(r'[^\d]', '', clean)
+            return int(digits) if digits else 0
+    except (ValueError, IndexError):
+        return 0
