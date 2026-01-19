@@ -40,8 +40,11 @@ You collect and analyze financial statement data when called by the stock-analyz
 
 ```
 ┌─────────────────────────────────────────┐
-│ 1순위: FnGuide (requests)               │
+│ 1순위: FnGuide (div ID 기반 파싱)       │
 │        utils.get_financial_data()       │
+│        - divSonikY: 연간 손익계산서     │
+│        - divDaechaY: 연간 재무상태표    │
+│        - divCashY: 연간 현금흐름표      │
 │        ⚠️ retry 최소 1회 필수           │
 │        ↓ None 반환 시                   │
 ├─────────────────────────────────────────┤
@@ -54,8 +57,12 @@ You collect and analyze financial statement data when called by the stock-analyz
 └─────────────────────────────────────────┘
 ```
 
-**⚠️ 모든 숫자에 출처 명시 필수**
-**⚠️ 네이버 파이낸스 fallback 제거됨 (데이터 정확도 이슈)**
+**⚠️ 중요: FnGuide 파싱 개선사항**
+
+1. **div ID 기반 파싱**: `divSonikY`, `divDaechaY`, `divCashY` 사용 (기존 `um_table` 클래스 대체)
+2. **누적 기간 자동 감지**: 2025년 3분기까지만 있으면 "2025(3Q누적)"으로 표시
+3. **완결 연도 기준 YoY**: 누적 데이터 제외하고 완결 연도끼리 비교
+4. **확장된 재무비율**: 부채비율, 유동비율, ROE, ROA, FCF
 
 ---
 
@@ -66,9 +73,9 @@ You collect and analyze financial statement data when called by the stock-analyz
 ### STEP 1: 재무제표 리포트 출력
 
 ```bash
-cd /Users/newyork/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
+cd /Users/michael/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
 import sys
-sys.path.insert(0, '/Users/newyork/public_agents/plugins/stock-analyzer-advanced')
+sys.path.insert(0, '/Users/michael/public_agents/plugins/stock-analyzer-advanced')
 
 from utils import print_fi_report
 
@@ -80,9 +87,9 @@ EOF
 ### STEP 2: dict로 데이터 반환받기 (고급 사용)
 
 ```bash
-cd /Users/newyork/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
+cd /Users/michael/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
 import sys
-sys.path.insert(0, '/Users/newyork/public_agents/plugins/stock-analyzer-advanced')
+sys.path.insert(0, '/Users/michael/public_agents/plugins/stock-analyzer-advanced')
 
 from utils import get_financial_data, calculate_peg
 import json
@@ -160,26 +167,54 @@ if not ticker.isdigit():  # US stock (예: AAPL, NVDA)
 
 ```python
 {
-    "source": "FnGuide" | "Naver Finance",  # 출처 명시
+    "source": "FnGuide",
     "ticker": "005930",
     "name": "삼성전자",
     "period": "2024/12",
     "annual": {
         "2022": {"revenue": 3022314, "operating_profit": 433766, "net_income": 556541},
         "2023": {"revenue": 2589355, "operating_profit": 65670, "net_income": 154871},
-        "2024": {"revenue": 3008709, "operating_profit": 327260, "net_income": 344514}
+        "2024": {"revenue": 3008709, "operating_profit": 327260, "net_income": 344514},
+        "2025": {"revenue": 1234567, ...}  # 누적 데이터
+    },
+    "balance": {
+        "2024": {
+            "total_assets": ...,
+            "current_assets": ...,
+            "total_liabilities": ...,
+            "current_liabilities": ...,
+            "total_equity": ...
+        }
+    },
+    "cash_flow": {
+        "2024": {
+            "operating_cash_flow": ...,
+            "investing_cash_flow": ...,
+            "financing_cash_flow": ...,
+            "fcf": ...  # 계산됨: operating + investing
+        }
     },
     "latest": {
-        "revenue": 3008709,
-        "operating_profit": 327260,
-        "net_income": 344514,
+        "revenue": ...,
+        "operating_profit": ...,
+        "net_income": ...,
         "total_assets": ...,
         "total_liabilities": ...,
         "total_equity": ...
     },
     "growth": {
-        "revenue_yoy": 16.2,          # 전년대비 매출 성장률 (%)
-        "operating_profit_yoy": 398.3  # 전년대비 영업이익 성장률 (%)
+        "revenue_yoy": 16.2,
+        "operating_profit_yoy": 398.3,
+        "comparison": "2024 vs 2023"  # 비교 대상 명시
+    },
+    "ratios": {
+        "debt_ratio": 45.2,      # 부채비율 (%)
+        "current_ratio": 178.5,  # 유동비율 (%)
+        "roe": 12.3,             # ROE (%)
+        "roa": 8.1               # ROA (%)
+    },
+    "period_labels": {
+        "2025": "3Q누적"  # 누적 기간 라벨
     }
 }
 ```
@@ -309,3 +344,28 @@ FI:
 ---
 
 **"Numbers tell the story. Always cite your source."**
+
+---
+
+# 📚 FnGuide 참고 사항
+
+## 테이블 ID 구조
+
+| 테이블 ID | 재무제표 유형 | 기간 구분 |
+|----------|-------------|----------|
+| `divSonikY` | 포괄손익계산서 | 연간 |
+| `divSonikQ` | 포괄손익계산서 | 분기 |
+| `divDaechaY` | 재무상태표 | 연간 |
+| `divCashY` | 현금흐름표 | 연간 |
+
+## 데이터 형식
+
+- **단위**: 억원
+- **날짜 형식**: `YYYY/MM` (예: `2024/12`)
+- **정밀값**: `<td title="757,882.69">` - title 속성에 소수점 포함
+
+## 주요 메트릭 (rowBold 클래스)
+
+- **손익**: 매출액, 영업이익, 당기순이익
+- **재무상태**: 자산, 부채, 자본
+- **현금흐름**: 영업활동/투자활동/재무활동으로인한현금흐름
