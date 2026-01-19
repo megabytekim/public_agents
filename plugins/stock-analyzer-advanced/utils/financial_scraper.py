@@ -47,6 +47,119 @@ CASH_FLOW_METRICS = {
 }
 
 
+def _parse_fnguide_number(text: str) -> Optional[float]:
+    """FnGuide 숫자 파싱 (억원 단위)
+
+    Args:
+        text: 셀 텍스트 또는 title 속성값
+
+    Returns:
+        float (억원) or None
+    """
+    if not text:
+        return None
+    text = text.strip()
+    if not text or text in ["-", "N/A", "NA", ""]:
+        return None
+
+    # 콤마 제거
+    clean = re.sub(r'[,\s]', '', text)
+
+    try:
+        return float(clean)
+    except ValueError:
+        return None
+
+
+def _parse_fnguide_table(soup: BeautifulSoup, div_id: str, metrics: dict) -> Optional[dict]:
+    """FnGuide 테이블 파싱 (div ID 기반)
+
+    Args:
+        soup: BeautifulSoup 객체
+        div_id: 테이블 div ID (예: "divSonikY")
+        metrics: 한글→영문 메트릭 매핑
+
+    Returns:
+        {
+            "2024": {"revenue": 123.4, "operating_profit": 45.6, ...},
+            "2023": {...},
+            ...
+        }
+    """
+    div_elem = soup.find("div", id=div_id)
+    if not div_elem:
+        return None
+
+    table = div_elem.find("table")
+    if not table:
+        return None
+
+    # 헤더에서 기간 추출
+    headers = []
+    thead = table.find("thead")
+    if thead:
+        for th in thead.find_all("th"):
+            text = th.text.strip()
+            if text:
+                headers.append(text)
+
+    if len(headers) < 2:
+        return None
+
+    # 기간 컬럼 추출 (YYYY/MM 형식 → YYYY 키)
+    periods = []
+    for h in headers[1:]:
+        match = re.match(r"(\d{4})/(\d{2})", h)
+        if match:
+            year = match.group(1)
+            if div_id.endswith("Y"):  # 연간
+                periods.append(year)
+            else:  # 분기
+                month = int(match.group(2))
+                quarter = {3: 1, 6: 2, 9: 3, 12: 4}.get(month, month // 3)
+                periods.append(f"{year}Q{quarter}")
+        elif "전년" not in h and "%" not in h:
+            periods.append(None)
+        else:
+            periods.append(None)
+
+    # 데이터 행 파싱
+    result = {p: {} for p in periods if p}
+    tbody = table.find("tbody")
+    if not tbody:
+        return None
+
+    for tr in tbody.find_all("tr"):
+        cells = tr.find_all(["th", "td"])
+        if len(cells) < 2:
+            continue
+
+        # 행 이름 (첫 번째 셀)
+        row_name = cells[0].text.strip().replace("\xa0", "").strip()
+
+        # rowBold 클래스 또는 대상 메트릭인 경우만 파싱
+        is_bold = "rowBold" in tr.get("class", [])
+        if not is_bold and row_name not in metrics:
+            continue
+
+        eng_key = metrics.get(row_name)
+        if not eng_key:
+            continue
+
+        # 값 추출
+        for i, cell in enumerate(cells[1:]):
+            if i >= len(periods) or not periods[i]:
+                continue
+            # title 속성 우선 (정밀값), 없으면 텍스트
+            value_str = cell.get("title") or cell.text.strip()
+            value = _parse_fnguide_number(value_str)
+            if value is not None:
+                result[periods[i]][eng_key] = value
+
+    # 빈 기간 제거
+    return {k: v for k, v in result.items() if v} or None
+
+
 def get_fnguide_financial(ticker: str, retry: int = 2) -> Optional[dict]:
     """
     FnGuide에서 재무제표 스크래핑
