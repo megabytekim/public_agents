@@ -59,9 +59,9 @@ You perform technical analysis AND collect all numerical data when called by the
 ### STEP 1: 통합 분석 실행 (간결화된 버전)
 
 ```bash
-cd /Users/newyork/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
+cd /Users/michael/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
 import sys
-sys.path.insert(0, '/Users/newyork/public_agents/plugins/stock-analyzer-advanced')
+sys.path.insert(0, '/Users/michael/public_agents/plugins/stock-analyzer-advanced')
 
 from utils import print_ti_report
 
@@ -73,9 +73,9 @@ EOF
 ### STEP 2: dict로 데이터 반환받기 (고급 사용)
 
 ```bash
-cd /Users/newyork/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
+cd /Users/michael/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
 import sys
-sys.path.insert(0, '/Users/newyork/public_agents/plugins/stock-analyzer-advanced')
+sys.path.insert(0, '/Users/michael/public_agents/plugins/stock-analyzer-advanced')
 
 from utils import get_ti_full_analysis
 import json

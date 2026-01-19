@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "updated": "2026-01-19",
+  "channels": {
+    "research": {
+      "description": "증권사 리서치 채널",
+      "channels": [],
+      "reliability": "high",
+      "notes": "공식 증권사 리서치 채널 추가"
+    },
+    "trading": {
+      "description": "개인 리딩방",
+      "channels": [],
+      "reliability": "medium",
+      "notes": "검증된 트레이더 채널만 추가"
+    },
+    "news": {
+      "description": "뉴스봇 채널",
+      "channels": [],
+      "reliability": "high",
+      "notes": "실시간 뉴스/공시 알림 채널"
+    },
+    "community": {
+      "description": "투자자 커뮤니티",
+      "channels": [],
+      "reliability": "low",
+      "notes": "일반 투자자 토론방, 루머 주의"
+    }
+  },
+  "usage": {
+    "add_channel": "각 카테고리의 channels 배열에 username 추가 (@ 제외)",
+    "example": ["stock_research", "daily_trading"],
+    "private_channels": "비공개 채널은 먼저 가입 필요"
+  }
+}

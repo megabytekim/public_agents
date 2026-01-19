@@ -1,0 +1,18 @@
+# Environment
+.env
+.env.local
+
+# Telegram session files
+*.session
+session_*.session
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp

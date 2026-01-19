@@ -117,9 +117,9 @@ WebSearch("what is today's date")
 
 ```bash
 # 한국 주식 종토방: Bash + utils 함수 사용 (가장 빠르고 정확)
-cd /Users/newyork/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
+cd /Users/michael/public_agents/plugins/stock-analyzer-advanced && python3 << 'EOF'
 import sys
-sys.path.insert(0, '/Users/newyork/public_agents/plugins/stock-analyzer-advanced')
+sys.path.insert(0, '/Users/michael/public_agents/plugins/stock-analyzer-advanced')
 
 from utils import get_naver_discussion
 

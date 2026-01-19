@@ -28,7 +28,7 @@ Tier 1 (`stock-analyzer-advanced`)의 1차 스크리닝 후, **심층 펀더멘�
 │    ┌──────────────┐   ┌──────────────┐   ┌──────────────┐      │
 │    │     FI+      │   │     SI+      │   │     MI+      │      │
 │    ├──────────────┤   ├──────────────┤   ├──────────────┤      │
-│    │ ✅ 구현완료   │   │ 🔜 예정      │   │ 🔜 예정      │      │
+│    │ ✅ 구현완료   │   │ ✅ 구현완료   │   │ 🔜 예정      │      │
 │    │ 분기 재무    │   │ 텔레그램     │   │ 경영진 평가  │      │
 │    │ + 피어비교   │   │ 센티먼트     │   │ + DART 공시  │      │
 │    └──────────────┘   └──────────────┘   └──────────────┘      │
@@ -40,25 +40,83 @@ Tier 1 (`stock-analyzer-advanced`)의 1차 스크리닝 후, **심층 펀더멘�
 ```
 tier2-analyzer/
 ├── README.md
+├── .env.example              # 환경변수 템플릿
+├── .gitignore
 ├── agents/
-│   └── fi-plus.md          # FI+ 에이전트 정의
+│   ├── fi-plus.md            # FI+ 에이전트 정의
+│   └── si-plus.md            # SI+ 에이전트 정의
+├── config/
+│   └── telegram_channels.json # 텔레그램 채널 설정
 ├── utils/
-│   ├── __init__.py         # 패키지 export
-│   └── fi_plus/            # FI+ 모듈
+│   ├── __init__.py           # 패키지 export
+│   ├── fi_plus/              # FI+ 모듈
+│   │   ├── __init__.py
+│   │   ├── peer_comparison.py
+│   │   └── fnguide/
+│   │       ├── __init__.py
+│   │       └── parser.py
+│   └── si_plus/              # SI+ 모듈
 │       ├── __init__.py
-│       ├── peer_comparison.py
-│       └── fnguide/
-│           ├── __init__.py # 통합 함수
-│           └── parser.py   # 파싱 로직
+│       └── telegram_collector.py
 ├── tests/
 │   ├── test_fi_plus.py
 │   ├── test_peer_comparison.py
-│   └── test_quarterly_scraper.py
+│   ├── test_quarterly_scraper.py
+│   └── test_telegram_collector.py
 └── docs/
     ├── fnguide-quarterly-structure.md
+    ├── telegram-api-setup.md   # 텔레그램 API 설정 가이드
     ├── logs/
     └── plans/
 ```
+
+---
+
+## 셋업
+
+### 1. 기본 의존성 설치
+
+```bash
+pip install requests beautifulsoup4 pytest
+```
+
+### 2. SI+ 텔레그램 수집 (선택)
+
+실제 텔레그램 채널에서 데이터를 수집하려면:
+
+```bash
+# Telethon 설치
+pip install telethon
+
+# 환경변수 설정
+cp .env.example .env
+# .env 파일 편집하여 API 키 입력
+```
+
+API 키 발급: [docs/telegram-api-setup.md](./docs/telegram-api-setup.md) 참조
+
+> **참고**: API 키 없이도 오프라인 분석(수동 메시지 입력)은 가능합니다.
+
+---
+
+## 테스트
+
+```bash
+cd plugins/tier2-analyzer
+
+# 전체 테스트 실행
+python -m pytest tests/ -v
+
+# FI+ 테스트만
+python -m pytest tests/test_fi_plus.py tests/test_peer_comparison.py tests/test_quarterly_scraper.py -v
+
+# SI+ 테스트만
+python -m pytest tests/test_telegram_collector.py -v
+```
+
+**현재 테스트 현황**: 40개 테스트 (FI+ 27개 + SI+ 13개)
+
+---
 
 ## FI+ 사용법
 
@@ -95,28 +153,81 @@ from utils.fi_plus import (
 )
 ```
 
-### 하위 호환성
+---
+
+## SI+ 사용법
+
+### 오프라인 분석 (API 키 불필요)
 
 ```python
-# 기존 API 호환
-from utils import (
-    get_fnguide_quarterly,
-    get_fnguide_annual_income,
-    get_fnguide_annual_balance_sheet,
-    get_fnguide_annual_cash_flow,
-    get_fnguide_full_financials,
-)
+from utils.si_plus import analyze_channel, format_sentiment_report
+
+# 수동 수집한 메시지
+messages = [
+    {"text": "삼성전자 급등 예상! 매수 추천", "date": "2024-01-15"},
+    {"text": "목표가 상향 조정", "date": "2024-01-14"},
+    {"text": "카더라 통신에 의하면 호재", "date": "2024-01-13"},
+    {"text": "하락 우려, 손절 고려", "date": "2024-01-12"},
+]
+
+result = analyze_channel(messages, "005930")
+print(format_sentiment_report(result))
 ```
+
+### 개별 함수
+
+```python
+from utils.si_plus import (
+    filter_messages_by_ticker,    # 종목 관련 메시지 필터링
+    analyze_telegram_sentiment,   # 센티먼트 점수 계산
+    classify_message,             # 루머 vs 팩트 분류
+    BULLISH_KEYWORDS,             # 상승 키워드 목록
+    BEARISH_KEYWORDS,             # 하락 키워드 목록
+)
+
+# 센티먼트 분석
+sentiment = analyze_telegram_sentiment(messages)
+print(f"점수: {sentiment['score']}")        # -1.0 ~ 1.0
+print(f"상승: {sentiment['bullish_count']}")
+print(f"하락: {sentiment['bearish_count']}")
+
+# 루머 분류
+result = classify_message("카더라 통신에 의하면 대박 호재")
+print(f"루머 여부: {result['is_rumor']}")    # True
+print(f"신뢰도: {result['confidence']}")
+```
+
+### 온라인 수집 (API 키 필요)
+
+```python
+import asyncio
+from utils.si_plus import collect_all_channels, format_sentiment_report
+
+async def main():
+    result = await collect_all_channels(
+        ticker="005930",
+        ticker_aliases=["삼성전자", "삼성", "삼전"],
+        channels=["your_channel_1", "your_channel_2"],
+        limit_per_channel=100,
+    )
+
+    if result.get("combined"):
+        print(format_sentiment_report(result["combined"]))
+
+asyncio.run(main())
+```
+
+---
 
 ## 데이터 소스
 
-| 데이터 | 소스 | 테이블 ID |
-|--------|------|-----------|
-| 손익계산서 (연간) | FnGuide | divSonikY |
-| 손익계산서 (분기) | FnGuide | divSonikQ |
+| 데이터 | 소스 | 비고 |
+|--------|------|------|
+| 손익계산서 (연간/분기) | FnGuide | divSonikY, divSonikQ |
 | 재무상태표 (연간) | FnGuide | divDaechaY |
 | 현금흐름표 (연간) | FnGuide | divCashY |
-| 밸류에이션 | Naver Finance | - |
+| 밸류에이션 (PER/PBR) | Naver Finance | - |
+| 텔레그램 센티먼트 | Telegram API | Telethon |
 
 ## 재무비율 계산
 
@@ -128,19 +239,23 @@ from utils import (
 | ROA | 순이익 / 자산 × 100 |
 | FCF | 영업CF + 투자CF |
 
-## 테스트
+## 센티먼트 키워드
 
-```bash
-cd plugins/tier2-analyzer
-python -m pytest tests/ -v
-```
+| 구분 | 예시 |
+|------|------|
+| 상승 (Bullish) | 급등, 상한가, 매수, 추천, 돌파, 신고가, 가즈아 |
+| 하락 (Bearish) | 급락, 하한가, 손절, 폭락, 투매, 탈출 |
+| 루머 지표 | 카더라, 소문, 찌라시, ~일듯, 추정 |
+| 팩트 지표 | 공시, IR, 발표, 확정, 뉴스 |
+
+---
 
 ## 에이전트
 
 | 에이전트 | 상태 | 역할 | 소스 |
 |----------|------|------|------|
 | **FI+** | ✅ 완료 | 분기 재무 + 피어 비교 | FnGuide |
-| **SI+** | 🔜 예정 | 텔레그램 센티먼트 | Telethon |
+| **SI+** | ✅ 완료 | 텔레그램 센티먼트 | Telethon |
 | **MI+** | 🔜 예정 | 경영진 평가 + DART 공시 | OpenDART API |
 
 ## 출력 경로
@@ -148,19 +263,24 @@ python -m pytest tests/ -v
 ```
 tier2/
 ├── 케이옥션_102370/
-│   └── FI_PLUS_REPORT.md
+│   ├── FI_PLUS_REPORT.md
+│   └── SI_PLUS_REPORT.md
 ├── 카카오페이_377300/
-│   └── FI_PLUS_REPORT.md
+│   └── ...
 └── ...
 ```
 
 ## 의존성
 
-- Tier 1: `stock-analyzer-advanced` 플러그인
-- Python: requests, beautifulsoup4
-- (예정) telethon, dart-fss
+| 패키지 | 용도 | 필수 |
+|--------|------|------|
+| requests | HTTP 요청 | ✅ |
+| beautifulsoup4 | HTML 파싱 | ✅ |
+| pytest | 테스트 | ✅ |
+| telethon | 텔레그램 API | ❌ (SI+ 온라인 수집 시) |
 
 ## 관련 문서
 
 - [FnGuide 테이블 구조](./docs/fnguide-quarterly-structure.md)
+- [Telegram API 설정](./docs/telegram-api-setup.md)
 - [FI+ 구현 로그](./docs/logs/2026-01-17-fi-plus-implementation.md)
