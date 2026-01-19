@@ -20,6 +20,9 @@ TARGET_METRICS = ["매출액", "영업이익", "당기순이익", "영업이익(
 # 연간 손익계산서 추출 대상 항목
 ANNUAL_INCOME_METRICS = ["매출액", "영업이익", "영업이익(발표기준)", "당기순이익", "지배주주순이익"]
 
+# 재무상태표 추출 대상 항목
+BALANCE_SHEET_METRICS = ["자산", "유동자산", "부채", "유동부채", "자본"]
+
 # 월 -> 분기 변환 맵 (결산월 기준)
 MONTH_TO_QUARTER = {3: 1, 6: 2, 9: 3, 12: 4}
 
@@ -42,14 +45,18 @@ METRIC_MAPPINGS = {
     },
     # 재무상태표 (divDaechaY, divDaechaQ)
     "divDaechaY": {
-        "자산총계": "total_assets",
-        "부채총계": "total_liabilities",
-        "자본총계": "total_equity",
+        "자산": "total_assets",
+        "유동자산": "current_assets",
+        "부채": "total_liabilities",
+        "유동부채": "current_liabilities",
+        "자본": "total_equity",
     },
     "divDaechaQ": {
-        "자산총계": "total_assets",
-        "부채총계": "total_liabilities",
-        "자본총계": "total_equity",
+        "자산": "total_assets",
+        "유동자산": "current_assets",
+        "부채": "total_liabilities",
+        "유동부채": "current_liabilities",
+        "자본": "total_equity",
     },
     # 현금흐름표 (divCashY, divCashQ)
     "divCashY": {
@@ -276,6 +283,20 @@ def _extract_headers(table: Optional[Tag]) -> list:
     return headers
 
 
+def _extract_first_text(element: Tag) -> str:
+    """요소의 첫 번째 직접 텍스트만 추출 (중첩 요소 제외)
+
+    Args:
+        element: BeautifulSoup 요소
+
+    Returns:
+        첫 번째 텍스트 내용 (예: "유동자산계산에 참여한 계정 펼치기" → "유동자산")
+    """
+    for content in element.stripped_strings:
+        return content
+    return element.text.strip()
+
+
 def _extract_data_rows(table) -> dict:
     """데이터 행 추출 - 주요 항목만 (하위 호환성)"""
     return _extract_data_rows_generic(table, TARGET_METRICS)
@@ -305,8 +326,8 @@ def _extract_data_rows_generic(table, target_metrics: list) -> dict:
         if len(cells) < 2:
             continue
 
-        # 항목명 (첫 번째 셀)
-        row_name = cells[0].text.strip()
+        # 항목명 (첫 번째 셀) - 첫 번째 직접 텍스트만 추출
+        row_name = _extract_first_text(cells[0])
         row_name = row_name.replace("\xa0", "").strip()
 
         # 주요 항목만 추출
@@ -479,3 +500,102 @@ def _calculate_growth(quarterly: dict) -> dict:
             )
 
     return growth
+
+
+def get_fnguide_annual_balance_sheet(ticker: str) -> Optional[dict]:
+    """FnGuide에서 연간 재무상태표 데이터를 가져옵니다.
+
+    Args:
+        ticker: 종목코드 (예: "005930")
+
+    Returns:
+        {
+            "source": "FnGuide",
+            "ticker": "005930",
+            "name": "삼성전자",
+            "annual": {
+                "2024": {
+                    "total_assets": ...,
+                    "current_assets": ...,
+                    "total_liabilities": ...,
+                    "current_liabilities": ...,
+                    "total_equity": ...
+                },
+                ...
+            },
+            "ratios": {
+                "debt_ratio": float,     # 부채비율 = 부채/자본 * 100
+                "current_ratio": float   # 유동비율 = 유동자산/유동부채 * 100
+            }
+        }
+    """
+    url = f"https://comp.fnguide.com/SVO2/ASP/SVD_Finance.asp?pGB=1&gicode=A{ticker}"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "Referer": "https://comp.fnguide.com/",
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.warning("FnGuide 요청 실패 (ticker=%s): %s", ticker, e)
+        return None
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    name = _extract_company_name(soup)
+    if not name:
+        return None
+
+    annual_data = _parse_fnguide_table(soup, "divDaechaY", BALANCE_SHEET_METRICS)
+
+    if not annual_data:
+        return None
+
+    # 최신 연도의 재무비율 계산
+    ratios = _calculate_balance_sheet_ratios(annual_data)
+
+    return {
+        "source": "FnGuide",
+        "ticker": ticker,
+        "name": name,
+        "annual": annual_data,
+        "ratios": ratios,
+    }
+
+
+def _calculate_balance_sheet_ratios(annual_data: dict) -> dict:
+    """재무상태표 기반 재무비율 계산
+
+    Args:
+        annual_data: 연간 재무상태표 데이터
+
+    Returns:
+        {
+            "debt_ratio": float,     # 부채비율 = 부채/자본 * 100
+            "current_ratio": float   # 유동비율 = 유동자산/유동부채 * 100
+        }
+    """
+    ratios = {"debt_ratio": None, "current_ratio": None}
+
+    if not annual_data:
+        return ratios
+
+    latest_year = max(annual_data.keys())
+    latest = annual_data[latest_year]
+
+    # 부채비율 = 부채 / 자본 * 100
+    total_liabilities = latest.get("total_liabilities")
+    total_equity = latest.get("total_equity")
+    if total_liabilities and total_equity and total_equity != 0:
+        ratios["debt_ratio"] = round(total_liabilities / total_equity * 100, 2)
+
+    # 유동비율 = 유동자산 / 유동부채 * 100
+    current_assets = latest.get("current_assets")
+    current_liabilities = latest.get("current_liabilities")
+    if current_assets and current_liabilities and current_liabilities != 0:
+        ratios["current_ratio"] = round(current_assets / current_liabilities * 100, 2)
+
+    return ratios

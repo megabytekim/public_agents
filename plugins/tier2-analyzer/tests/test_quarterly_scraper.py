@@ -79,3 +79,38 @@ class TestGetFnguideAnnualIncome:
             assert "operating_profit" in data
             assert "net_income" in data
             assert data["revenue"] is not None
+
+
+class TestGetFnguideAnnualBalanceSheet:
+    """get_fnguide_annual_balance_sheet() 함수 테스트"""
+
+    def test_get_fnguide_annual_balance_sheet_returns_three_years(self):
+        """연간 재무상태표가 최근 3년 데이터를 반환하는지 확인"""
+        from utils.quarterly_scraper import get_fnguide_annual_balance_sheet
+
+        result = get_fnguide_annual_balance_sheet("005930")  # 삼성전자
+
+        assert result is not None
+        assert "annual" in result
+
+        annual = result["annual"]
+        assert len(annual) >= 3
+
+        for year, data in list(annual.items())[:3]:
+            assert "total_assets" in data
+            assert "total_liabilities" in data
+            assert "total_equity" in data
+            assert data["total_assets"] is not None
+
+    def test_get_fnguide_annual_balance_sheet_calculates_ratios(self):
+        """재무상태표에서 재무비율이 계산되는지 확인"""
+        from utils.quarterly_scraper import get_fnguide_annual_balance_sheet
+
+        result = get_fnguide_annual_balance_sheet("005930")
+
+        assert result is not None
+        assert "ratios" in result
+
+        ratios = result["ratios"]
+        assert "debt_ratio" in ratios  # 부채비율
+        assert "current_ratio" in ratios  # 유동비율
