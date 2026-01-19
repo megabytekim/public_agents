@@ -153,3 +153,86 @@ class TestGetFnguideAnnualCashFlow:
             expected_fcf = latest["operating_cash_flow"] + latest["investing_cash_flow"]
             assert "fcf" in latest
             assert abs(latest["fcf"] - expected_fcf) < 1  # 반올림 오차 허용
+
+
+class TestGetFnguideFullFinancials:
+    """get_fnguide_full_financials() 통합 함수 테스트"""
+
+    def test_get_fnguide_full_financials_returns_all_statements(self):
+        """통합 함수가 모든 재무제표를 반환하는지 확인"""
+        from utils.quarterly_scraper import get_fnguide_full_financials
+
+        result = get_fnguide_full_financials("005930")
+
+        assert result is not None
+        assert "ticker" in result
+        assert "name" in result
+
+        # 손익계산서
+        assert "income_statement" in result
+        assert "annual" in result["income_statement"]
+        assert "quarterly" in result["income_statement"]
+
+        # 재무상태표
+        assert "balance_sheet" in result
+        assert "annual" in result["balance_sheet"]
+
+        # 현금흐름표
+        assert "cash_flow" in result
+        assert "annual" in result["cash_flow"]
+
+        # 재무비율
+        assert "ratios" in result
+
+        # 성장률
+        assert "growth" in result
+
+    def test_get_fnguide_full_financials_ratios(self):
+        """통합 함수가 재무비율을 올바르게 계산하는지 확인"""
+        from utils.quarterly_scraper import get_fnguide_full_financials
+
+        result = get_fnguide_full_financials("005930")
+
+        assert result is not None
+        ratios = result["ratios"]
+
+        # 모든 비율 키 존재
+        assert "debt_ratio" in ratios
+        assert "current_ratio" in ratios
+        assert "roe" in ratios
+        assert "roa" in ratios
+
+    def test_get_fnguide_full_financials_growth(self):
+        """통합 함수가 성장률을 올바르게 계산하는지 확인"""
+        from utils.quarterly_scraper import get_fnguide_full_financials
+
+        result = get_fnguide_full_financials("005930")
+
+        assert result is not None
+        growth = result["growth"]
+
+        # 성장률 키 존재
+        assert "revenue_yoy" in growth
+        assert "operating_profit_yoy" in growth
+
+    def test_get_fnguide_full_financials_fcf_calculated(self):
+        """통합 함수가 FCF를 계산하는지 확인"""
+        from utils.quarterly_scraper import get_fnguide_full_financials
+
+        result = get_fnguide_full_financials("005930")
+
+        assert result is not None
+        cash_flow = result["cash_flow"]["annual"]
+
+        # 최신 연도에 FCF 포함
+        latest_year = max(cash_flow.keys())
+        latest = cash_flow[latest_year]
+        assert "fcf" in latest
+
+    def test_get_fnguide_full_financials_invalid_ticker(self):
+        """잘못된 티커는 None 반환"""
+        from utils.quarterly_scraper import get_fnguide_full_financials
+
+        result = get_fnguide_full_financials("999999")
+
+        assert result is None

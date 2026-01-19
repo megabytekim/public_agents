@@ -668,3 +668,210 @@ def get_fnguide_annual_cash_flow(ticker: str) -> Optional[dict]:
         "name": name,
         "annual": annual_data,
     }
+
+
+def get_fnguide_full_financials(ticker: str) -> Optional[dict]:
+    """FnGuide에서 전체 재무제표 데이터를 가져옵니다.
+
+    단일 HTTP 요청으로 모든 재무제표를 파싱합니다.
+
+    Args:
+        ticker: 종목코드 (예: "005930")
+
+    Returns:
+        {
+            "ticker": "005930",
+            "name": "삼성전자",
+            "source": "FnGuide",
+            "income_statement": {
+                "annual": {...},
+                "quarterly": {...}
+            },
+            "balance_sheet": {
+                "annual": {...}
+            },
+            "cash_flow": {
+                "annual": {...}
+            },
+            "ratios": {
+                "debt_ratio": float,
+                "current_ratio": float,
+                "roe": float,
+                "roa": float
+            },
+            "growth": {
+                "revenue_yoy": float,
+                "operating_profit_yoy": float
+            }
+        }
+    """
+    url = f"https://comp.fnguide.com/SVO2/ASP/SVD_Finance.asp?pGB=1&gicode=A{ticker}"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "Referer": "https://comp.fnguide.com/",
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.warning("FnGuide 요청 실패 (ticker=%s): %s", ticker, e)
+        return None
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # 회사명 추출
+    name = _extract_company_name(soup)
+    if not name:
+        return None
+
+    # 손익계산서 (연간 + 분기)
+    income_annual = _parse_fnguide_table(soup, "divSonikY", ANNUAL_INCOME_METRICS)
+    income_quarterly = _parse_fnguide_table(soup, "divSonikQ", TARGET_METRICS)
+
+    # 재무상태표 (연간)
+    balance_annual = _parse_fnguide_table(soup, "divDaechaY", BALANCE_SHEET_METRICS)
+
+    # 현금흐름표 (연간)
+    cash_annual = _parse_fnguide_table(soup, "divCashY", CASH_FLOW_METRICS)
+
+    # 최소한 하나의 재무제표가 있어야 함
+    if not income_annual and not balance_annual and not cash_annual:
+        return None
+
+    # FCF 계산
+    if cash_annual:
+        for year, data in cash_annual.items():
+            operating_cf = data.get("operating_cash_flow")
+            investing_cf = data.get("investing_cash_flow")
+            if operating_cf is not None and investing_cf is not None:
+                data["fcf"] = operating_cf + investing_cf
+
+    # 재무비율 계산 (부채비율, 유동비율, ROE, ROA)
+    ratios = _calculate_full_ratios(income_annual, balance_annual)
+
+    # 성장률 계산 (매출 YoY, 영업이익 YoY)
+    growth = _calculate_growth_rates(income_annual)
+
+    return {
+        "source": "FnGuide",
+        "ticker": ticker,
+        "name": name,
+        "income_statement": {
+            "annual": income_annual or {},
+            "quarterly": income_quarterly or {},
+        },
+        "balance_sheet": {
+            "annual": balance_annual or {},
+        },
+        "cash_flow": {
+            "annual": cash_annual or {},
+        },
+        "ratios": ratios,
+        "growth": growth,
+    }
+
+
+def _calculate_full_ratios(income_data: Optional[dict], balance_data: Optional[dict]) -> dict:
+    """전체 재무비율 계산 (부채비율, 유동비율, ROE, ROA)
+
+    Args:
+        income_data: 연간 손익계산서 데이터
+        balance_data: 연간 재무상태표 데이터
+
+    Returns:
+        {
+            "debt_ratio": float,     # 부채비율 = 부채/자본 * 100
+            "current_ratio": float,  # 유동비율 = 유동자산/유동부채 * 100
+            "roe": float,            # ROE = 순이익/자본 * 100
+            "roa": float,            # ROA = 순이익/자산 * 100
+        }
+    """
+    ratios = {
+        "debt_ratio": None,
+        "current_ratio": None,
+        "roe": None,
+        "roa": None,
+    }
+
+    if not balance_data:
+        return ratios
+
+    latest_year = max(balance_data.keys())
+    balance = balance_data[latest_year]
+
+    # 부채비율 = 부채 / 자본 * 100
+    total_liabilities = balance.get("total_liabilities")
+    total_equity = balance.get("total_equity")
+    if total_liabilities and total_equity and total_equity != 0:
+        ratios["debt_ratio"] = round(total_liabilities / total_equity * 100, 2)
+
+    # 유동비율 = 유동자산 / 유동부채 * 100
+    current_assets = balance.get("current_assets")
+    current_liabilities = balance.get("current_liabilities")
+    if current_assets and current_liabilities and current_liabilities != 0:
+        ratios["current_ratio"] = round(current_assets / current_liabilities * 100, 2)
+
+    # ROE, ROA 계산 (손익계산서 필요)
+    if income_data and latest_year in income_data:
+        income = income_data[latest_year]
+        net_income = income.get("net_income")
+
+        # ROE = 순이익 / 자본 * 100
+        if net_income is not None and total_equity and total_equity != 0:
+            ratios["roe"] = round(net_income / total_equity * 100, 2)
+
+        # ROA = 순이익 / 자산 * 100
+        total_assets = balance.get("total_assets")
+        if net_income is not None and total_assets and total_assets != 0:
+            ratios["roa"] = round(net_income / total_assets * 100, 2)
+
+    return ratios
+
+
+def _calculate_growth_rates(income_data: Optional[dict]) -> dict:
+    """성장률 계산 (매출 YoY, 영업이익 YoY)
+
+    Args:
+        income_data: 연간 손익계산서 데이터
+
+    Returns:
+        {
+            "revenue_yoy": float,           # 매출 성장률
+            "operating_profit_yoy": float,  # 영업이익 성장률
+        }
+    """
+    growth = {
+        "revenue_yoy": None,
+        "operating_profit_yoy": None,
+    }
+
+    if not income_data or len(income_data) < 2:
+        return growth
+
+    # 연도 정렬 (최신 순)
+    sorted_years = sorted(income_data.keys(), reverse=True)
+    latest_year = sorted_years[0]
+    prev_year = sorted_years[1]
+
+    latest = income_data[latest_year]
+    prev = income_data[prev_year]
+
+    # 매출 YoY = (금년 - 전년) / |전년| * 100
+    latest_revenue = latest.get("revenue")
+    prev_revenue = prev.get("revenue")
+    if latest_revenue is not None and prev_revenue is not None and prev_revenue != 0:
+        growth["revenue_yoy"] = round(
+            (latest_revenue - prev_revenue) / abs(prev_revenue) * 100, 2
+        )
+
+    # 영업이익 YoY = (금년 - 전년) / |전년| * 100
+    latest_op = latest.get("operating_profit")
+    prev_op = prev.get("operating_profit")
+    if latest_op is not None and prev_op is not None and prev_op != 0:
+        growth["operating_profit_yoy"] = round(
+            (latest_op - prev_op) / abs(prev_op) * 100, 2
+        )
+
+    return growth
