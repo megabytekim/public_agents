@@ -200,15 +200,78 @@ class TestGetMarketCap:
         expected_keys = ['시가총액', '거래량', '거래대금', '상장주식수', '외국인보유주식수']
         assert all(key in result for key in expected_keys)
 
-    def test_get_market_cap_exception(self, mock_pykrx_stock):
-        """예외 발생 시 None 반환"""
+    def test_get_market_cap_exception_both_fail(self, mock_pykrx_stock, mocker):
+        """pykrx와 Naver 모두 예외 발생 시 None 반환"""
         from utils.data_fetcher import get_market_cap
 
         mock_pykrx_stock.get_market_cap.side_effect = Exception("Error")
+        # Naver fallback도 실패하도록 설정
+        mock_naver = mocker.patch('utils.web_scraper.get_naver_stock_info')
+        mock_naver.side_effect = Exception("Naver Error")
 
         result = get_market_cap("005930")
 
         assert result is None
+
+    def test_get_market_cap_pykrx_fails_uses_naver_fallback(self, mock_pykrx_stock, mocker):
+        """pykrx 실패 시 Naver fallback 사용"""
+        from utils.data_fetcher import get_market_cap
+
+        # pykrx 실패하도록 설정
+        mock_pykrx_stock.get_market_cap.side_effect = Exception("KRX login required")
+
+        # Naver fallback mock (web_scraper 모듈에서 mock)
+        mock_naver = mocker.patch('utils.web_scraper.get_naver_stock_info')
+        mock_naver.return_value = {
+            "name": "삼성전자",
+            "price": 70000,
+            "market_cap": 4180000,  # 억 단위 (418조)
+            "volume": 10000000,
+            "per": 15.5,
+            "pbr": 1.4,
+        }
+
+        result = get_market_cap("005930")
+
+        assert result is not None
+        assert "시가총액" in result
+        # 4180000억 * 100000000 = 418조 원
+        assert result["시가총액"] == 4180000 * 100000000
+        assert result["거래량"] == 10000000
+        # Naver에서 제공하지 않는 필드는 None
+        assert result["거래대금"] is None
+        assert result["상장주식수"] is None
+        assert result["외국인보유주식수"] is None
+
+    def test_get_market_cap_pykrx_empty_uses_naver_fallback(self, mock_pykrx_stock, mocker):
+        """pykrx가 빈 DataFrame 반환 시 Naver fallback 사용"""
+        from utils.data_fetcher import get_market_cap
+
+        # pykrx가 빈 DataFrame 반환
+        mock_pykrx_stock.get_market_cap.return_value = pd.DataFrame()
+
+        # Naver fallback mock (web_scraper 모듈에서 mock)
+        mock_naver = mocker.patch('utils.web_scraper.get_naver_stock_info')
+        mock_naver.return_value = {
+            "name": "삼성전자",
+            "market_cap": 4180000,  # 억 단위
+            "volume": 10000000,
+        }
+
+        result = get_market_cap("005930")
+
+        assert result is not None
+        assert result["시가총액"] == 4180000 * 100000000
+
+
+def test_get_market_cap_with_fallback():
+    """get_market_cap이 pykrx 실패 시 Naver fallback 사용 (통합 테스트)"""
+    from utils.data_fetcher import get_market_cap
+    result = get_market_cap("005930")
+
+    assert result is not None
+    assert "시가총액" in result
+    assert result["시가총액"] > 0
 
 
 # NOTE: get_investor_trading() and get_short_selling() moved to utils/deprecated.py

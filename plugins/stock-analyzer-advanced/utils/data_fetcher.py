@@ -172,7 +172,7 @@ def get_market_cap(
     date: Optional[str] = None
 ) -> Optional[dict]:
     """
-    시가총액 정보 조회
+    시가총액 정보 조회 (pykrx 우선, 실패 시 Naver fallback)
 
     Args:
         ticker: 종목코드
@@ -182,30 +182,46 @@ def get_market_cap(
         {
             "시가총액": int,
             "거래량": int,
-            "거래대금": int,
-            "상장주식수": int,
-            "외국인보유주식수": int
+            "거래대금": int or None,
+            "상장주식수": int or None,
+            "외국인보유주식수": int or None
         }
         or None (실패 시)
     """
+    # 1차: pykrx
     try:
         if date is None:
             date = datetime.now().strftime("%Y%m%d")
 
         df = stock.get_market_cap(date, date, ticker)
 
-        if df.empty:
-            return None
-
-        row = df.iloc[-1]
-        return {
-            "시가총액": int(row["시가총액"]),
-            "거래량": int(row["거래량"]),
-            "거래대금": int(row["거래대금"]),
-            "상장주식수": int(row["상장주식수"]),
-            "외국인보유주식수": int(row.get("외국인보유주식수", 0)),
-        }
+        if not df.empty:
+            row = df.iloc[-1]
+            return {
+                "시가총액": int(row["시가총액"]),
+                "거래량": int(row["거래량"]),
+                "거래대금": int(row["거래대금"]),
+                "상장주식수": int(row["상장주식수"]),
+                "외국인보유주식수": int(row.get("외국인보유주식수", 0)),
+            }
     except Exception:
-        return None
+        pass
+
+    # 2차: Naver fallback
+    try:
+        from utils.web_scraper import get_naver_stock_info
+        info = get_naver_stock_info(ticker)
+        if info and info.get("market_cap"):
+            return {
+                "시가총액": int(info["market_cap"]) * 100000000,  # 억→원
+                "거래량": int(info.get("volume", 0) or 0),
+                "거래대금": None,  # Naver 미제공
+                "상장주식수": None,  # Naver 미제공
+                "외국인보유주식수": None,  # Naver 미제공
+            }
+    except Exception:
+        pass
+
+    return None
 
 
