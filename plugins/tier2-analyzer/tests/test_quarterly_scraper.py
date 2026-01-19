@@ -8,7 +8,7 @@ class TestGetFnguideQuarterly:
 
     def test_returns_quarterly_data_structure(self):
         """분기 데이터 구조 반환 확인"""
-        from utils.quarterly_scraper import get_fnguide_quarterly
+        from utils.fi_plus import get_fnguide_quarterly
 
         # 삼성전자 테스트 (실제 API 호출)
         result = get_fnguide_quarterly("005930")
@@ -20,7 +20,7 @@ class TestGetFnguideQuarterly:
 
     def test_quarterly_has_recent_quarters(self):
         """최근 분기 데이터 포함 확인"""
-        from utils.quarterly_scraper import get_fnguide_quarterly
+        from utils.fi_plus import get_fnguide_quarterly
 
         result = get_fnguide_quarterly("005930")
 
@@ -36,7 +36,7 @@ class TestGetFnguideQuarterly:
 
     def test_quarterly_has_financial_metrics(self):
         """분기별 재무 지표 포함 확인"""
-        from utils.quarterly_scraper import get_fnguide_quarterly
+        from utils.fi_plus import get_fnguide_quarterly
 
         result = get_fnguide_quarterly("005930")
 
@@ -50,7 +50,7 @@ class TestGetFnguideQuarterly:
 
     def test_invalid_ticker_returns_none(self):
         """잘못된 티커는 None 반환"""
-        from utils.quarterly_scraper import get_fnguide_quarterly
+        from utils.fi_plus import get_fnguide_quarterly
 
         result = get_fnguide_quarterly("999999")
 
@@ -62,7 +62,7 @@ class TestGetFnguideAnnualIncome:
 
     def test_get_fnguide_annual_income_returns_three_years(self):
         """연간 손익계산서가 최근 3년 데이터를 반환하는지 확인"""
-        from utils.quarterly_scraper import get_fnguide_annual_income
+        from utils.fi_plus import get_fnguide_annual_income
 
         result = get_fnguide_annual_income("005930")  # 삼성전자
 
@@ -86,7 +86,7 @@ class TestGetFnguideAnnualBalanceSheet:
 
     def test_get_fnguide_annual_balance_sheet_returns_three_years(self):
         """연간 재무상태표가 최근 3년 데이터를 반환하는지 확인"""
-        from utils.quarterly_scraper import get_fnguide_annual_balance_sheet
+        from utils.fi_plus import get_fnguide_annual_balance_sheet
 
         result = get_fnguide_annual_balance_sheet("005930")  # 삼성전자
 
@@ -104,7 +104,7 @@ class TestGetFnguideAnnualBalanceSheet:
 
     def test_get_fnguide_annual_balance_sheet_calculates_ratios(self):
         """재무상태표에서 재무비율이 계산되는지 확인"""
-        from utils.quarterly_scraper import get_fnguide_annual_balance_sheet
+        from utils.fi_plus import get_fnguide_annual_balance_sheet
 
         result = get_fnguide_annual_balance_sheet("005930")
 
@@ -121,7 +121,7 @@ class TestGetFnguideAnnualCashFlow:
 
     def test_get_fnguide_annual_cash_flow_returns_three_years(self):
         """연간 현금흐름표가 최근 3년 데이터를 반환하는지 확인"""
-        from utils.quarterly_scraper import get_fnguide_annual_cash_flow
+        from utils.fi_plus import get_fnguide_annual_cash_flow
 
         result = get_fnguide_annual_cash_flow("005930")  # 삼성전자
 
@@ -138,7 +138,7 @@ class TestGetFnguideAnnualCashFlow:
 
     def test_get_fnguide_annual_cash_flow_calculates_fcf(self):
         """현금흐름표에서 FCF가 계산되는지 확인"""
-        from utils.quarterly_scraper import get_fnguide_annual_cash_flow
+        from utils.fi_plus import get_fnguide_annual_cash_flow
 
         result = get_fnguide_annual_cash_flow("005930")
 
@@ -160,7 +160,7 @@ class TestGetFnguideFullFinancials:
 
     def test_get_fnguide_full_financials_returns_all_statements(self):
         """통합 함수가 모든 재무제표를 반환하는지 확인"""
-        from utils.quarterly_scraper import get_fnguide_full_financials
+        from utils.fi_plus import get_fnguide_full_financials
 
         result = get_fnguide_full_financials("005930")
 
@@ -189,7 +189,7 @@ class TestGetFnguideFullFinancials:
 
     def test_get_fnguide_full_financials_ratios(self):
         """통합 함수가 재무비율을 올바르게 계산하는지 확인"""
-        from utils.quarterly_scraper import get_fnguide_full_financials
+        from utils.fi_plus import get_fnguide_full_financials
 
         result = get_fnguide_full_financials("005930")
 
@@ -204,7 +204,7 @@ class TestGetFnguideFullFinancials:
 
     def test_get_fnguide_full_financials_growth(self):
         """통합 함수가 성장률을 올바르게 계산하는지 확인"""
-        from utils.quarterly_scraper import get_fnguide_full_financials
+        from utils.fi_plus import get_fnguide_full_financials
 
         result = get_fnguide_full_financials("005930")
 
@@ -217,7 +217,7 @@ class TestGetFnguideFullFinancials:
 
     def test_get_fnguide_full_financials_fcf_calculated(self):
         """통합 함수가 FCF를 계산하는지 확인"""
-        from utils.quarterly_scraper import get_fnguide_full_financials
+        from utils.fi_plus import get_fnguide_full_financials
 
         result = get_fnguide_full_financials("005930")
 
@@ -231,7 +231,7 @@ class TestGetFnguideFullFinancials:
 
     def test_get_fnguide_full_financials_invalid_ticker(self):
         """잘못된 티커는 None 반환"""
-        from utils.quarterly_scraper import get_fnguide_full_financials
+        from utils.fi_plus import get_fnguide_full_financials
 
         result = get_fnguide_full_financials("999999")
 

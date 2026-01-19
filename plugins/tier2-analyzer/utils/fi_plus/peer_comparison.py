@@ -1,7 +1,8 @@
-"""피어 비교 유틸리티
+"""피어 비교 모듈
 
 동종업계 밸류에이션 비교 기능
 """
+
 import importlib.util
 import logging
 from typing import Optional, List
@@ -9,18 +10,16 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Tier 1 utils 경로 (절대 경로 사용)
-TIER1_UTILS = Path(__file__).parent.parent.parent / "stock-analyzer-advanced" / "utils"
+# Tier 1 utils 경로
+TIER1_UTILS = Path(__file__).parent.parent.parent.parent / "stock-analyzer-advanced" / "utils"
 
 
 def _load_tier1_module(module_name: str):
-    """Tier 1 모듈을 절대 경로에서 동적 로드 (모듈 충돌 방지)"""
+    """Tier 1 모듈 동적 로드"""
     module_path = TIER1_UTILS / f"{module_name}.py"
     if not module_path.exists():
         return None
-    spec = importlib.util.spec_from_file_location(
-        f"tier1_{module_name}", str(module_path)
-    )
+    spec = importlib.util.spec_from_file_location(f"tier1_{module_name}", str(module_path))
     if spec and spec.loader:
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -28,11 +27,9 @@ def _load_tier1_module(module_name: str):
     return None
 
 
-# Tier 1 모듈 로드
 _web_scraper = _load_tier1_module("web_scraper")
 _data_fetcher = _load_tier1_module("data_fetcher")
 
-# 함수 바인딩 (없으면 None 반환 스텁)
 if _web_scraper and hasattr(_web_scraper, "get_naver_stock_info"):
     get_naver_stock_info = _web_scraper.get_naver_stock_info
 else:
@@ -46,45 +43,9 @@ else:
         return None
 
 
-def get_peer_comparison(
-    ticker: str,
-    peers: List[str],
-    include_sector_avg: bool = True
-) -> Optional[dict]:
-    """
-    피어 그룹 밸류에이션 비교
-
-    Args:
-        ticker: 대상 종목코드
-        peers: 비교 대상 종목코드 리스트
-        include_sector_avg: 섹터 평균 포함 여부
-
-    Returns:
-        {
-            "target": {
-                "ticker": "377300",
-                "name": "카카오페이",
-                "per": 33.17,
-                "pbr": 3.55,
-                "market_cap": "6.72조"
-            },
-            "peers": [
-                {"ticker": "035420", "name": "네이버", "per": 28.5, ...},
-                ...
-            ],
-            "sector_avg": {
-                "per": 30.2,
-                "pbr": 3.1
-            },
-            "premium_discount": {
-                "per": 10.0,  # 섹터 대비 10% 프리미엄
-                "pbr": 14.5
-            }
-        }
-    """
-    # 타겟 종목 정보
+def get_peer_comparison(ticker: str, peers: List[str], include_sector_avg: bool = True) -> Optional[dict]:
+    """피어 그룹 밸류에이션 비교"""
     try:
-        logger.debug(f"Fetching stock info for ticker: {ticker}")
         target_info = get_naver_stock_info(ticker)
         target_name = get_ticker_name(ticker)
     except Exception as e:
@@ -103,11 +64,9 @@ def get_peer_comparison(
         "market_cap": target_info.get("market_cap"),
     }
 
-    # 피어 종목 정보 수집
     peer_data = []
     for peer_ticker in peers:
         try:
-            logger.debug(f"Fetching stock info for peer: {peer_ticker}")
             peer_info = get_naver_stock_info(peer_ticker)
             peer_name = get_ticker_name(peer_ticker)
         except Exception as e:
@@ -122,55 +81,30 @@ def get_peer_comparison(
                 "pbr": peer_info.get("pbr"),
                 "market_cap": peer_info.get("market_cap"),
             })
-        else:
-            logger.warning(f"Failed to fetch stock info for peer: {peer_ticker}")
 
-    # 섹터 평균 계산
     all_tickers = [ticker] + peers
     sector_avg = get_sector_average(all_tickers) if include_sector_avg else {}
 
-    # 프리미엄/디스카운트 계산
     premium_discount = {}
     if sector_avg and target.get("per") and sector_avg.get("per") and sector_avg["per"] != 0:
-        premium_discount["per"] = round(
-            (target["per"] - sector_avg["per"]) / sector_avg["per"] * 100, 1
-        )
+        premium_discount["per"] = round((target["per"] - sector_avg["per"]) / sector_avg["per"] * 100, 1)
     if sector_avg and target.get("pbr") and sector_avg.get("pbr") and sector_avg["pbr"] != 0:
-        premium_discount["pbr"] = round(
-            (target["pbr"] - sector_avg["pbr"]) / sector_avg["pbr"] * 100, 1
-        )
+        premium_discount["pbr"] = round((target["pbr"] - sector_avg["pbr"]) / sector_avg["pbr"] * 100, 1)
 
-    return {
-        "target": target,
-        "peers": peer_data,
-        "sector_avg": sector_avg,
-        "premium_discount": premium_discount,
-    }
+    return {"target": target, "peers": peer_data, "sector_avg": sector_avg, "premium_discount": premium_discount}
 
 
 def get_sector_average(tickers: List[str]) -> Optional[dict]:
-    """
-    종목 리스트의 평균 밸류에이션 계산
-
-    Args:
-        tickers: 종목코드 리스트
-
-    Returns:
-        {"per": 평균 PER, "pbr": 평균 PBR}
-        or None (빈 리스트 시)
-    """
+    """종목 리스트의 평균 밸류에이션"""
     if not tickers:
         return None
 
-    per_values = []
-    pbr_values = []
+    per_values, pbr_values = [], []
 
     for ticker in tickers:
         try:
-            logger.debug(f"Fetching stock info for sector average: {ticker}")
             info = get_naver_stock_info(ticker)
-        except Exception as e:
-            logger.error(f"Exception fetching ticker {ticker} for sector average: {e}")
+        except Exception:
             continue
 
         if info:
@@ -178,8 +112,6 @@ def get_sector_average(tickers: List[str]) -> Optional[dict]:
                 per_values.append(info["per"])
             if info.get("pbr"):
                 pbr_values.append(info["pbr"])
-        else:
-            logger.warning(f"Failed to fetch stock info for sector average: {ticker}")
 
     result = {}
     if per_values:

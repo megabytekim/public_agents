@@ -8,7 +8,7 @@ class TestGetPeerComparison:
 
     def test_returns_comparison_table(self):
         """비교 테이블 반환 확인"""
-        from utils.peer_comparison import get_peer_comparison
+        from utils.fi_plus import get_peer_comparison
 
         # 카카오페이와 피어 비교
         result = get_peer_comparison(
@@ -23,7 +23,7 @@ class TestGetPeerComparison:
 
     def test_calculates_premium_discount(self):
         """프리미엄/디스카운트 계산 확인"""
-        from utils.peer_comparison import get_peer_comparison
+        from utils.fi_plus import get_peer_comparison
 
         result = get_peer_comparison(
             ticker="377300",
@@ -41,7 +41,7 @@ class TestGetSectorAverage:
 
     def test_returns_sector_metrics(self):
         """섹터 평균 지표 반환"""
-        from utils.peer_comparison import get_sector_average
+        from utils.fi_plus import get_sector_average
 
         result = get_sector_average(tickers=["377300", "035420", "035720"])
 
@@ -50,7 +50,7 @@ class TestGetSectorAverage:
 
     def test_empty_tickers_returns_none(self):
         """빈 티커 리스트는 None 반환"""
-        from utils.peer_comparison import get_sector_average
+        from utils.fi_plus import get_sector_average
 
         result = get_sector_average(tickers=[])
         assert result is None
