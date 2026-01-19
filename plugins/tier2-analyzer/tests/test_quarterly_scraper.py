@@ -55,3 +55,27 @@ class TestGetFnguideQuarterly:
         result = get_fnguide_quarterly("999999")
 
         assert result is None
+
+
+class TestGetFnguideAnnualIncome:
+    """get_fnguide_annual_income() 함수 테스트"""
+
+    def test_get_fnguide_annual_income_returns_three_years(self):
+        """연간 손익계산서가 최근 3년 데이터를 반환하는지 확인"""
+        from utils.quarterly_scraper import get_fnguide_annual_income
+
+        result = get_fnguide_annual_income("005930")  # 삼성전자
+
+        assert result is not None
+        assert "annual" in result
+
+        annual = result["annual"]
+        # 최소 3개년 데이터 존재
+        assert len(annual) >= 3
+
+        # 각 연도에 필수 항목 존재
+        for year, data in list(annual.items())[:3]:
+            assert "revenue" in data
+            assert "operating_profit" in data
+            assert "net_income" in data
+            assert data["revenue"] is not None

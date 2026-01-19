@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 # 분기 재무 데이터 추출 대상 항목
 TARGET_METRICS = ["매출액", "영업이익", "당기순이익", "영업이익(발표기준)"]
 
+# 연간 손익계산서 추출 대상 항목
+ANNUAL_INCOME_METRICS = ["매출액", "영업이익", "영업이익(발표기준)", "당기순이익", "지배주주순이익"]
+
 # 월 -> 분기 변환 맵 (결산월 기준)
 MONTH_TO_QUARTER = {3: 1, 6: 2, 9: 3, 12: 4}
 
@@ -119,6 +122,57 @@ def get_fnguide_quarterly(ticker: str) -> Optional[dict]:
         "name": name,
         "quarterly": quarterly_data,
         "growth": growth,
+    }
+
+
+def get_fnguide_annual_income(ticker: str) -> Optional[dict]:
+    """FnGuide에서 연간 손익계산서 데이터를 가져옵니다.
+
+    Args:
+        ticker: 종목코드 (예: "005930")
+
+    Returns:
+        {
+            "source": "FnGuide",
+            "ticker": "005930",
+            "name": "삼성전자",
+            "annual": {
+                "2024": {"revenue": ..., "operating_profit": ..., "net_income": ...},
+                "2023": {...},
+                "2022": {...}
+            }
+        }
+    """
+    url = f"https://comp.fnguide.com/SVO2/ASP/SVD_Finance.asp?pGB=1&gicode=A{ticker}"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "Referer": "https://comp.fnguide.com/",
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.warning("FnGuide 요청 실패 (ticker=%s): %s", ticker, e)
+        return None
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    name = _extract_company_name(soup)
+    if not name:
+        return None
+
+    annual_data = _parse_fnguide_table(soup, "divSonikY", ANNUAL_INCOME_METRICS)
+
+    if not annual_data:
+        return None
+
+    return {
+        "source": "FnGuide",
+        "ticker": ticker,
+        "name": name,
+        "annual": annual_data,
     }
 
 
