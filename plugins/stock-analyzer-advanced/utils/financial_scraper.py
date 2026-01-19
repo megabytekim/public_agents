@@ -160,9 +160,119 @@ def _parse_fnguide_table(soup: BeautifulSoup, div_id: str, metrics: dict) -> Opt
     return {k: v for k, v in result.items() if v} or None
 
 
-def get_fnguide_financial(ticker: str, retry: int = 2) -> Optional[dict]:
+def _extract_company_name(soup: BeautifulSoup) -> Optional[str]:
+    """회사명 추출"""
+    # h1.giName 시도
+    name_elem = soup.find("h1", class_="giName")
+    if name_elem:
+        return name_elem.text.strip()
+
+    # title에서 추출
+    title = soup.find("title")
+    if title:
+        title_text = title.text.strip()
+        match = re.match(r"([^(]+)\(", title_text)
+        if match:
+            return match.group(1).strip()
+    return None
+
+
+def _detect_accumulated_periods(annual_data: dict, soup: BeautifulSoup) -> dict:
+    """누적 기간 감지 (4분기 미완료 연도)
+
+    Returns:
+        {"2025": "3Q누적"} - 해당 연도가 누적인 경우
     """
-    FnGuide에서 재무제표 스크래핑
+    labels = {}
+    if not annual_data:
+        return labels
+
+    latest_year = max(annual_data.keys())
+
+    # 분기 테이블에서 해당 연도 최신 분기 확인
+    quarterly = _parse_fnguide_table(soup, "divSonikQ", INCOME_METRICS)
+    if quarterly:
+        year_quarters = [q for q in quarterly.keys() if q.startswith(latest_year)]
+        if year_quarters:
+            latest_quarter = max(year_quarters)
+            quarter_num = latest_quarter[-1]
+            if quarter_num != "4":
+                labels[latest_year] = f"{quarter_num}Q누적"
+
+    return labels
+
+
+def _calculate_growth(income_data: dict, period_labels: Optional[dict] = None) -> dict:
+    """연간 성장률 (완결 연도 기준)
+
+    누적 연도는 제외하고 완결된 연도끼리 비교
+    예: 2025(3Q누적)이 있으면 2024 vs 2023 비교
+    """
+    growth = {"revenue_yoy": None, "operating_profit_yoy": None, "comparison": None}
+    if not income_data or len(income_data) < 2:
+        return growth
+
+    years = sorted(income_data.keys(), reverse=True)
+
+    # 누적 연도 제외
+    if period_labels:
+        complete_years = [y for y in years if y not in period_labels]
+    else:
+        complete_years = years
+
+    if len(complete_years) < 2:
+        return growth
+
+    latest_year, prev_year = complete_years[0], complete_years[1]
+    latest, prev = income_data[latest_year], income_data[prev_year]
+
+    growth["comparison"] = f"{latest_year} vs {prev_year}"
+
+    lr, pr = latest.get("revenue"), prev.get("revenue")
+    if lr is not None and pr is not None and pr != 0:
+        growth["revenue_yoy"] = round((lr - pr) / abs(pr) * 100, 2)
+
+    lo, po = latest.get("operating_profit"), prev.get("operating_profit")
+    if lo is not None and po is not None and po != 0:
+        growth["operating_profit_yoy"] = round((lo - po) / abs(po) * 100, 2)
+
+    return growth
+
+
+def _calculate_ratios(income_data: Optional[dict], balance_data: Optional[dict]) -> dict:
+    """재무비율 계산"""
+    ratios = {"debt_ratio": None, "current_ratio": None, "roe": None, "roa": None}
+
+    if not balance_data:
+        return ratios
+
+    latest_year = max(balance_data.keys())
+    balance = balance_data[latest_year]
+
+    tl = balance.get("total_liabilities")
+    te = balance.get("total_equity")
+    if tl and te and te != 0:
+        ratios["debt_ratio"] = round(tl / te * 100, 2)
+
+    ca = balance.get("current_assets")
+    cl = balance.get("current_liabilities")
+    if ca and cl and cl != 0:
+        ratios["current_ratio"] = round(ca / cl * 100, 2)
+
+    if income_data and latest_year in income_data:
+        ni = income_data[latest_year].get("net_income")
+        ta = balance.get("total_assets")
+
+        if ni is not None and te and te != 0:
+            ratios["roe"] = round(ni / te * 100, 2)
+        if ni is not None and ta and ta != 0:
+            ratios["roa"] = round(ni / ta * 100, 2)
+
+    return ratios
+
+
+def get_fnguide_financial(ticker: str, retry: int = 2) -> Optional[dict]:
+    """FnGuide에서 재무제표 스크래핑 (div ID 기반)
 
     Args:
         ticker: 종목코드 (예: "005930")
@@ -174,114 +284,80 @@ def get_fnguide_financial(ticker: str, retry: int = 2) -> Optional[dict]:
             "ticker": "005930",
             "name": "삼성전자",
             "period": "2024/12",
-            "annual": {
-                "2022": {"revenue": ..., "operating_profit": ..., "net_income": ...},
-                "2023": {...},
-                "2024": {...}
-            },
-            "latest": {
-                "revenue": int,
-                "operating_profit": int,
-                "net_income": int,
-                "total_assets": int,
-                "total_liabilities": int,
-                "total_equity": int
-            },
-            "growth": {
-                "revenue_yoy": float,  # 전년대비 매출 성장률 (%)
-                "operating_profit_yoy": float
-            }
+            "annual": {...},
+            "balance": {...},
+            "cash_flow": {...},
+            "latest": {...},
+            "growth": {...},
+            "ratios": {...},
+            "period_labels": {...}
         }
-        or None (실패 시)
     """
-    url = f"https://comp.fnguide.com/SVO2/ASP/SVD_Finance.asp?pGB=1&gicode=A{ticker}"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-    }
+    url = f"{FNGUIDE_URL}?pGB=1&gicode=A{ticker}"
 
     for attempt in range(retry + 1):
         try:
-            response = requests.get(url, headers=headers, timeout=15)
+            response = requests.get(url, headers=FNGUIDE_HEADERS, timeout=15)
             response.raise_for_status()
-
             soup = BeautifulSoup(response.text, "html.parser")
 
-            # 종목명 추출 (title에서 파싱)
-            title = soup.find("title")
-            name = None
-            if title:
-                # "삼성전자(A005930) | 재무제표..." 형식에서 종목명 추출
-                title_text = title.get_text(strip=True)
-                match = re.match(r'^([^(]+)\(', title_text)
-                if match:
-                    name = match.group(1).strip()
+            # 종목명 추출
+            name = _extract_company_name(soup)
 
-            # um_table div들 찾기
-            tables = soup.find_all("div", class_="um_table")
-            if len(tables) < 3:
-                raise ValueError("Required tables not found")
+            # 테이블 파싱
+            income_annual = _parse_fnguide_table(soup, "divSonikY", INCOME_METRICS)
+            balance_annual = _parse_fnguide_table(soup, "divDaechaY", BALANCE_METRICS)
+            cash_annual = _parse_fnguide_table(soup, "divCashY", CASH_FLOW_METRICS)
 
-            # Table 1: 연간 손익계산서
-            income_table = tables[0]
-            annual_data = _parse_income_table(income_table)
-
-            # Table 3 또는 4: 재무상태표 (자산/부채/자본)
-            balance_table = None
-            for t in tables[2:]:
-                headers = t.find_all("th")
-                if any("자산" in h.get_text() for h in headers):
-                    balance_table = t
-                    break
-
-            balance_data = _parse_balance_table(balance_table) if balance_table else {}
-
-            if not annual_data:
+            if not income_annual:
                 raise ValueError("Failed to parse income data")
 
-            # 최신 연도 데이터
-            years = sorted(annual_data.keys(), reverse=True)
+            # FCF 계산
+            if cash_annual:
+                for year, data in cash_annual.items():
+                    ocf = data.get("operating_cash_flow")
+                    icf = data.get("investing_cash_flow")
+                    if ocf is not None and icf is not None:
+                        data["fcf"] = ocf + icf
+
+            # 누적 기간 감지
+            period_labels = _detect_accumulated_periods(income_annual, soup)
+
+            # 성장률 계산 (완결 연도 기준)
+            growth = _calculate_growth(income_annual, period_labels)
+
+            # 재무비율 계산
+            ratios = _calculate_ratios(income_annual, balance_annual)
+
+            # 최신 연도
+            years = sorted(income_annual.keys(), reverse=True)
             latest_year = years[0] if years else None
-            prev_year = years[1] if len(years) > 1 else None
 
-            # 성장률 계산
-            growth = {}
-            if latest_year and prev_year:
-                latest = annual_data[latest_year]
-                prev = annual_data[prev_year]
+            # latest 구성
+            latest = {}
+            if latest_year and latest_year in income_annual:
+                latest.update(income_annual[latest_year])
+            if balance_annual and latest_year in balance_annual:
+                latest.update(balance_annual[latest_year])
 
-                if prev.get("revenue") and prev["revenue"] != 0:
-                    growth["revenue_yoy"] = round(
-                        (latest.get("revenue", 0) - prev["revenue"]) / prev["revenue"] * 100, 2
-                    )
-                if prev.get("operating_profit") and prev["operating_profit"] != 0:
-                    growth["operating_profit_yoy"] = round(
-                        (latest.get("operating_profit", 0) - prev["operating_profit"]) / prev["operating_profit"] * 100, 2
-                    )
-
-            result = {
+            return {
                 "source": "FnGuide",
                 "ticker": ticker,
                 "name": name,
                 "period": f"{latest_year}/12" if latest_year else None,
-                "annual": annual_data,
-                "latest": {
-                    "revenue": annual_data.get(latest_year, {}).get("revenue"),
-                    "operating_profit": annual_data.get(latest_year, {}).get("operating_profit"),
-                    "net_income": annual_data.get(latest_year, {}).get("net_income"),
-                    "total_assets": balance_data.get("total_assets"),
-                    "total_liabilities": balance_data.get("total_liabilities"),
-                    "total_equity": balance_data.get("total_equity"),
-                },
+                "annual": income_annual,
+                "balance": balance_annual or {},
+                "cash_flow": cash_annual or {},
+                "latest": latest,
                 "growth": growth,
+                "ratios": ratios,
+                "period_labels": period_labels,
             }
-
-            return result
 
         except Exception as e:
             if attempt < retry:
-                time.sleep(1)  # 재시도 전 대기
+                time.sleep(1)
                 continue
-            # 모든 재시도 실패
             return None
 
     return None
@@ -384,91 +460,6 @@ def calculate_peg(per: float, eps_growth: float) -> Optional[float]:
     if per is None or eps_growth is None or eps_growth == 0:
         return None
     return round(per / eps_growth, 2)
-
-
-def _parse_income_table(table) -> dict:
-    """손익계산서 테이블 파싱"""
-    result = {}
-
-    try:
-        rows = table.find_all("tr")
-
-        # 헤더에서 연도 추출
-        header_row = rows[0] if rows else None
-        years = []
-        if header_row:
-            ths = header_row.find_all("th")
-            for th in ths:
-                text = th.get_text(strip=True)
-                # "2024/12" 형식에서 연도 추출
-                match = re.search(r'(\d{4})/\d{2}', text)
-                if match:
-                    years.append(match.group(1))
-
-        # 연도별 데이터 초기화
-        for year in years[:3]:  # 최근 3년만
-            result[year] = {}
-
-        # 데이터 행 파싱
-        for row in rows:
-            cells = row.find_all(["th", "td"])
-            if len(cells) < 2:
-                continue
-
-            label = cells[0].get_text(strip=True)
-            values = [_parse_number(c.get_text(strip=True)) for c in cells[1:]]
-
-            # 매출액
-            if label == "매출액":
-                for i, year in enumerate(years[:3]):
-                    if i < len(values):
-                        result[year]["revenue"] = values[i]
-
-            # 영업이익
-            elif label == "영업이익":
-                for i, year in enumerate(years[:3]):
-                    if i < len(values):
-                        result[year]["operating_profit"] = values[i]
-
-            # 당기순이익
-            elif "당기순이익" in label and "지배" not in label:
-                for i, year in enumerate(years[:3]):
-                    if i < len(values):
-                        result[year]["net_income"] = values[i]
-
-    except Exception:
-        pass
-
-    return result
-
-
-def _parse_balance_table(table) -> dict:
-    """재무상태표 테이블 파싱"""
-    result = {}
-
-    try:
-        rows = table.find_all("tr")
-
-        for row in rows:
-            cells = row.find_all(["th", "td"])
-            if len(cells) < 2:
-                continue
-
-            label = cells[0].get_text(strip=True)
-            # 최신 연도 값 (두 번째 컬럼)
-            value = _parse_number(cells[1].get_text(strip=True)) if len(cells) > 1 else None
-
-            if label == "자산총계":
-                result["total_assets"] = value
-            elif label == "부채총계":
-                result["total_liabilities"] = value
-            elif label == "자본총계":
-                result["total_equity"] = value
-
-    except Exception:
-        pass
-
-    return result
 
 
 def _parse_number(text: str) -> Optional[int]:
