@@ -20,6 +20,47 @@ TARGET_METRICS = ["매출액", "영업이익", "당기순이익", "영업이익(
 # 월 -> 분기 변환 맵 (결산월 기준)
 MONTH_TO_QUARTER = {3: 1, 6: 2, 9: 3, 12: 4}
 
+# 테이블 타입별 한글→영문 키 매핑
+METRIC_MAPPINGS = {
+    # 손익계산서 (divSonikY, divSonikQ)
+    "divSonikY": {
+        "매출액": "revenue",
+        "영업이익": "operating_profit",
+        "영업이익(발표기준)": "operating_profit",
+        "당기순이익": "net_income",
+        "세전계속사업이익": "pretax_income",
+    },
+    "divSonikQ": {
+        "매출액": "revenue",
+        "영업이익": "operating_profit",
+        "영업이익(발표기준)": "operating_profit",
+        "당기순이익": "net_income",
+        "세전계속사업이익": "pretax_income",
+    },
+    # 재무상태표 (divDaechaY, divDaechaQ)
+    "divDaechaY": {
+        "자산총계": "total_assets",
+        "부채총계": "total_liabilities",
+        "자본총계": "total_equity",
+    },
+    "divDaechaQ": {
+        "자산총계": "total_assets",
+        "부채총계": "total_liabilities",
+        "자본총계": "total_equity",
+    },
+    # 현금흐름표 (divCashY, divCashQ)
+    "divCashY": {
+        "영업활동으로인한현금흐름": "operating_cash_flow",
+        "투자활동으로인한현금흐름": "investing_cash_flow",
+        "재무활동으로인한현금흐름": "financing_cash_flow",
+    },
+    "divCashQ": {
+        "영업활동으로인한현금흐름": "operating_cash_flow",
+        "투자활동으로인한현금흐름": "investing_cash_flow",
+        "재무활동으로인한현금흐름": "financing_cash_flow",
+    },
+}
+
 
 def get_fnguide_quarterly(ticker: str) -> Optional[dict]:
     """FnGuide에서 분기 재무 데이터를 가져옵니다.
@@ -109,47 +150,63 @@ def _extract_company_name(soup: BeautifulSoup) -> Optional[str]:
 
 
 def _parse_quarterly_income_statement(soup: BeautifulSoup) -> Optional[dict]:
-    """분기 손익계산서 파싱 (divSonikQ)"""
-    div_sonik_q = soup.find("div", id="divSonikQ")
-    if not div_sonik_q:
+    """분기 손익계산서 파싱 (divSonikQ) - 하위 호환성"""
+    return _parse_fnguide_table(soup, "divSonikQ", TARGET_METRICS)
+
+
+def _parse_fnguide_table(
+    soup: BeautifulSoup, div_id: str, target_metrics: list
+) -> Optional[dict]:
+    """FnGuide 테이블 공통 파싱 함수
+
+    Args:
+        soup: BeautifulSoup 객체
+        div_id: 테이블 ID (divSonikY, divSonikQ, divDaechaY, divCashY 등)
+        target_metrics: 추출할 항목명 리스트
+
+    Returns:
+        {기간키: {영문키: 값, ...}, ...} 또는 None
+    """
+    div_elem = soup.find("div", id=div_id)
+    if not div_elem:
         return None
 
-    table = div_sonik_q.find("table")
+    table = div_elem.find("table")
     if not table:
         return None
 
-    # 헤더에서 분기 정보 추출
+    # 헤더에서 기간 정보 추출
     headers = _extract_headers(table)
     if len(headers) < 2:
         return None
 
     # 데이터 행 추출
-    data_rows = _extract_data_rows(table)
+    data_rows = _extract_data_rows_generic(table, target_metrics)
     if not data_rows:
         return None
 
-    # 분기별 데이터 구조화
-    quarterly = {}
+    # 기간별 데이터 구조화
+    result = {}
 
     for period_idx, period in enumerate(headers[1:], start=1):
-        # 기간 형식 변환 (예: "2024/12" -> "2024Q4")
-        quarter_key = _convert_period_to_quarter_key(period)
-        if not quarter_key:
+        # 기간 형식 변환
+        period_key = _convert_period_to_key(period, div_id)
+        if not period_key:
             continue
 
-        quarter_data = {}
+        period_data = {}
         for row_name, values in data_rows.items():
             if period_idx - 1 < len(values):
                 value = values[period_idx - 1]
                 # 영문 키로 변환
-                eng_key = _convert_to_english_key(row_name)
+                eng_key = _get_english_key(row_name, div_id)
                 if eng_key:
-                    quarter_data[eng_key] = value
+                    period_data[eng_key] = value
 
-        if quarter_data:
-            quarterly[quarter_key] = quarter_data
+        if period_data:
+            result[period_key] = period_data
 
-    return quarterly if quarterly else None
+    return result if result else None
 
 
 def _extract_headers(table: Optional[Tag]) -> list:
@@ -166,7 +223,20 @@ def _extract_headers(table: Optional[Tag]) -> list:
 
 
 def _extract_data_rows(table) -> dict:
-    """데이터 행 추출 - 주요 항목만"""
+    """데이터 행 추출 - 주요 항목만 (하위 호환성)"""
+    return _extract_data_rows_generic(table, TARGET_METRICS)
+
+
+def _extract_data_rows_generic(table, target_metrics: list) -> dict:
+    """데이터 행 추출 (지정된 항목만)
+
+    Args:
+        table: BeautifulSoup 테이블 요소
+        target_metrics: 추출할 항목명 리스트
+
+    Returns:
+        {항목명: [값1, 값2, ...], ...}
+    """
     data_rows = {}
     tbody = table.find("tbody")
     if not tbody:
@@ -188,7 +258,7 @@ def _extract_data_rows(table) -> dict:
         # 주요 항목만 추출
         if not is_bold:
             # 주요 항목이 아니어도 필요한 항목은 포함
-            if row_name not in TARGET_METRICS:
+            if row_name not in target_metrics:
                 continue
 
         # 값 추출 (2번째 셀부터)
@@ -247,13 +317,27 @@ def _parse_numeric_value(value_str: str) -> Optional[float]:
 
 
 def _convert_period_to_quarter_key(period: str) -> Optional[str]:
-    """기간을 분기 키로 변환
+    """기간을 분기 키로 변환 (하위 호환성)
 
     Args:
         period: "2024/12", "2024/09" 등
 
     Returns:
         "2024Q4", "2024Q3" 등
+    """
+    return _convert_period_to_key(period, "divSonikQ")
+
+
+def _convert_period_to_key(period: str, div_id: str) -> Optional[str]:
+    """기간을 키로 변환 (연간: "2024", 분기: "2024Q4")
+
+    Args:
+        period: "2024/12", "2024/09", "2024" 등
+        div_id: 테이블 ID (Y로 끝나면 연간, Q로 끝나면 분기)
+
+    Returns:
+        연간 테이블: "2024"
+        분기 테이블: "2024Q4"
     """
     # "전년동기", "전년동기(%)" 등 무시
     if "전년" in period or "%" in period:
@@ -262,14 +346,21 @@ def _convert_period_to_quarter_key(period: str) -> Optional[str]:
     # YYYY/MM 형식 파싱
     match = re.match(r"(\d{4})/(\d{2})", period)
     if not match:
+        # 연간: YYYY 형식 처리
+        year_match = re.match(r"(\d{4})$", period.strip())
+        if year_match and div_id.endswith("Y"):
+            return year_match.group(1)
         return None
 
     year = match.group(1)
     month = int(match.group(2))
 
-    # 월 -> 분기 변환
-    quarter = MONTH_TO_QUARTER.get(month)
+    # 연간 테이블 (Y로 끝남)
+    if div_id.endswith("Y"):
+        return year
 
+    # 분기 테이블 (Q로 끝남)
+    quarter = MONTH_TO_QUARTER.get(month)
     if quarter:
         return f"{year}Q{quarter}"
 
@@ -277,14 +368,21 @@ def _convert_period_to_quarter_key(period: str) -> Optional[str]:
 
 
 def _convert_to_english_key(korean_name: str) -> Optional[str]:
-    """한글 항목명을 영문 키로 변환"""
-    mapping = {
-        "매출액": "revenue",
-        "영업이익": "operating_profit",
-        "영업이익(발표기준)": "operating_profit",
-        "당기순이익": "net_income",
-        "세전계속사업이익": "pretax_income",
-    }
+    """한글 항목명을 영문 키로 변환 (손익계산서용, 하위 호환성)"""
+    return _get_english_key(korean_name, "divSonikQ")
+
+
+def _get_english_key(korean_name: str, div_id: str) -> Optional[str]:
+    """테이블 타입별 한글→영문 키 매핑
+
+    Args:
+        korean_name: 한글 항목명
+        div_id: 테이블 ID (divSonikY, divSonikQ, divDaechaY, divCashY 등)
+
+    Returns:
+        영문 키 또는 None
+    """
+    mapping = METRIC_MAPPINGS.get(div_id, {})
     return mapping.get(korean_name)
 
 
