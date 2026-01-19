@@ -346,3 +346,12 @@ def test_get_ticker_list_with_fallback():
     assert result is not None
     assert len(result) > 100  # KOSPI has many stocks
     assert "005930" in result  # Samsung should be in the list
+
+
+def test_get_fundamental_returns_data():
+    """get_fundamental이 데이터 반환 (통합 테스트)"""
+    from utils.data_fetcher import get_fundamental
+    result = get_fundamental("005930")
+
+    assert result is not None
+    assert result["PER"] > 0 or result["PBR"] > 0
