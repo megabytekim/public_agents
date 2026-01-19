@@ -114,3 +114,42 @@ class TestGetFnguideAnnualBalanceSheet:
         ratios = result["ratios"]
         assert "debt_ratio" in ratios  # 부채비율
         assert "current_ratio" in ratios  # 유동비율
+
+
+class TestGetFnguideAnnualCashFlow:
+    """get_fnguide_annual_cash_flow() 함수 테스트"""
+
+    def test_get_fnguide_annual_cash_flow_returns_three_years(self):
+        """연간 현금흐름표가 최근 3년 데이터를 반환하는지 확인"""
+        from utils.quarterly_scraper import get_fnguide_annual_cash_flow
+
+        result = get_fnguide_annual_cash_flow("005930")  # 삼성전자
+
+        assert result is not None
+        assert "annual" in result
+
+        annual = result["annual"]
+        assert len(annual) >= 3
+
+        for year, data in list(annual.items())[:3]:
+            assert "operating_cash_flow" in data
+            assert "investing_cash_flow" in data
+            assert "financing_cash_flow" in data
+
+    def test_get_fnguide_annual_cash_flow_calculates_fcf(self):
+        """현금흐름표에서 FCF가 계산되는지 확인"""
+        from utils.quarterly_scraper import get_fnguide_annual_cash_flow
+
+        result = get_fnguide_annual_cash_flow("005930")
+
+        assert result is not None
+
+        # FCF = 영업CF + 투자CF (투자CF는 보통 음수)
+        annual = result["annual"]
+        latest_year = max(annual.keys())
+        latest = annual[latest_year]
+
+        if latest.get("operating_cash_flow") and latest.get("investing_cash_flow"):
+            expected_fcf = latest["operating_cash_flow"] + latest["investing_cash_flow"]
+            assert "fcf" in latest
+            assert abs(latest["fcf"] - expected_fcf) < 1  # 반올림 오차 허용

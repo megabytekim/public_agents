@@ -23,6 +23,13 @@ ANNUAL_INCOME_METRICS = ["매출액", "영업이익", "영업이익(발표기준
 # 재무상태표 추출 대상 항목
 BALANCE_SHEET_METRICS = ["자산", "유동자산", "부채", "유동부채", "자본"]
 
+# 현금흐름표 추출 대상 항목
+CASH_FLOW_METRICS = [
+    "영업활동으로인한현금흐름",
+    "투자활동으로인한현금흐름",
+    "재무활동으로인한현금흐름",
+]
+
 # 월 -> 분기 변환 맵 (결산월 기준)
 MONTH_TO_QUARTER = {3: 1, 6: 2, 9: 3, 12: 4}
 
@@ -599,3 +606,65 @@ def _calculate_balance_sheet_ratios(annual_data: dict) -> dict:
         ratios["current_ratio"] = round(current_assets / current_liabilities * 100, 2)
 
     return ratios
+
+
+def get_fnguide_annual_cash_flow(ticker: str) -> Optional[dict]:
+    """FnGuide에서 연간 현금흐름표 데이터를 가져옵니다.
+
+    Args:
+        ticker: 종목코드 (예: "005930")
+
+    Returns:
+        {
+            "source": "FnGuide",
+            "ticker": "005930",
+            "name": "삼성전자",
+            "annual": {
+                "2024": {
+                    "operating_cash_flow": ...,
+                    "investing_cash_flow": ...,
+                    "financing_cash_flow": ...,
+                    "fcf": ...  # 계산됨: operating_cash_flow + investing_cash_flow
+                },
+                ...
+            }
+        }
+    """
+    url = f"https://comp.fnguide.com/SVO2/ASP/SVD_Finance.asp?pGB=1&gicode=A{ticker}"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "Referer": "https://comp.fnguide.com/",
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.warning("FnGuide 요청 실패 (ticker=%s): %s", ticker, e)
+        return None
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    name = _extract_company_name(soup)
+    if not name:
+        return None
+
+    annual_data = _parse_fnguide_table(soup, "divCashY", CASH_FLOW_METRICS)
+
+    if not annual_data:
+        return None
+
+    # FCF 계산: operating_cash_flow + investing_cash_flow
+    for year, data in annual_data.items():
+        operating_cf = data.get("operating_cash_flow")
+        investing_cf = data.get("investing_cash_flow")
+        if operating_cf is not None and investing_cf is not None:
+            data["fcf"] = operating_cf + investing_cf
+
+    return {
+        "source": "FnGuide",
+        "ticker": ticker,
+        "name": name,
+        "annual": annual_data,
+    }
