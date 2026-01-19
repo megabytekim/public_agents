@@ -1,4 +1,10 @@
 """pytest fixtures for utils tests"""
+import sys
+from pathlib import Path
+
+# Add the parent directory to sys.path for utils module discovery
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import pytest
 import pandas as pd
 import numpy as np
