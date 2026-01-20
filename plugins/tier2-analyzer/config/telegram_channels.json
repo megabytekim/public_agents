@@ -1,28 +1,28 @@
 {
   "version": "1.0",
-  "updated": "2026-01-19",
+  "updated": "2026-01-20",
   "channels": {
     "research": {
       "description": "증권사 리서치 채널",
-      "channels": [],
+      "channels": ["siglab", "Brain_And_Body_Research"],
       "reliability": "high",
-      "notes": "공식 증권사 리서치 채널 추가"
+      "notes": "분석/리서치 중심 채널"
     },
     "trading": {
       "description": "개인 리딩방",
-      "channels": [],
+      "channels": ["gatubang", "bornlupin"],
       "reliability": "medium",
-      "notes": "검증된 트레이더 채널만 추가"
+      "notes": "트레이딩 중심 채널"
     },
     "news": {
       "description": "뉴스봇 채널",
-      "channels": [],
+      "channels": ["FastStockNews", "EarlyStock1"],
       "reliability": "high",
       "notes": "실시간 뉴스/공시 알림 채널"
     },
     "community": {
       "description": "투자자 커뮤니티",
-      "channels": [],
+      "channels": ["athletes_village", "corevalue"],
       "reliability": "low",
       "notes": "일반 투자자 토론방, 루머 주의"
     }
